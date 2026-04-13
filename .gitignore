@@ -142,3 +142,7 @@ cython_debug/
 media
 
 .idea/
+
+# TP Deteccion - local captures (privacy-sensitive)
+tp_deteccion/generated-files/captures/
+tp_deteccion/generated-files/captures_manifest.csv

@@ -21,7 +21,7 @@ def generate_hu_moments_file():
     with open('generated-files/shapes-hu-moments.csv', 'w',
               newline='') as file:  # Se genera un archivo nuevo (W=Write)
         writer = csv.writer(file)
-        # Ahora escribo los momentos de Hu de cada uno de las figuras. 
+        # Ahora escribo los momentos de Hu de cada uno de las figuras. Con el string "rectangle...etc" busca en la carpeta donde estan cada una de las imagenes
         # generar los momentos de Hu y los escribe sobre este archivo. (LOS DE ENTRENAMIENTO).
         write_hu_moments("5-point-star", writer)
         write_hu_moments("rectangle", writer)
@@ -45,11 +45,6 @@ def hu_moments_of_file(filename):
     contours, hierarchy = cv2.findContours(bin, cv2.RETR_LIST,
                                            cv2.CHAIN_APPROX_SIMPLE)  # encuetra los contornos
     shape_contour = max(contours, key=cv2.contourArea)  # Agarra el contorno de area maxima
-
-    # Descomentar para chequear que estemos agarrando bien el contorno
-    # cv2.drawContours(image, [shape_contour], -1, (0, 255, 0), 2)
-    # cv2.imshow("test", image)
-    # cv2.waitKey(0)
 
     # Calculate Moments
     moments = cv2.moments(shape_contour)  # momentos de inercia
