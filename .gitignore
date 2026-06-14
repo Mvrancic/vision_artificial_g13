@@ -146,3 +146,6 @@ media
 # TP Deteccion - local captures (privacy-sensitive)
 tp_deteccion/generated-files/captures/
 tp_deteccion/generated-files/captures_manifest.csv
+
+# TP final: modelo de profundidad MiDaS, se descarga bajo demanda (~64MB)
+tp_final/enfoque3_reconstruccion/models/*.onnx
