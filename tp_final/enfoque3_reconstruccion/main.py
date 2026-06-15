@@ -67,7 +67,7 @@ def draw_objects(image, objects):
     return out
 
 
-def build_floorplan(image, depth_norm, objects, plan_size=420):
+def build_floorplan(image, depth_norm, objects, plan_size=420, mode='heat'):
     """Vista de planta (top-down): back-proyecta los pixeles con la profundidad.
 
     Modelo de camara pinhole simple (f ~ ancho). La camara esta abajo al centro y
@@ -75,6 +75,9 @@ def build_floorplan(image, depth_norm, objects, plan_size=420):
     del plano = distancia hacia adelante. La escala es RELATIVA (MiDaS da profundidad
     relativa, no metros). Se dibuja grilla, ejes, la camara con su cono de vision y
     la huella de cada mueble detectado.
+
+    mode='heat': grilla de ocupacion estilo radar (acumula densidad -> superficies
+    solidas y nitidas). mode='color': nube de puntos con el color real (mas ruidosa).
     """
     h, w = depth_norm.shape
     f = 0.9 * w
@@ -92,7 +95,7 @@ def build_floorplan(image, depth_norm, objects, plan_size=420):
         cv2.line(plan, (g, 0), (g, plan_size), grid_color, 1)
         cv2.line(plan, (0, g), (plan_size, g), grid_color, 1)
 
-    # --- nube de puntos back-proyectada (vectorizado para que corra en video) ---
+    # --- back-proyeccion (vectorizado para que corra en video) ---
     Z = (1.0 - depth_norm) * 4.0 + 0.5   # lejos = Z grande
     step = max(1, h // 180)
     vs = np.arange(0, h, step)
@@ -102,9 +105,26 @@ def build_floorplan(image, depth_norm, objects, plan_size=420):
     xx = (uu - cx) * zz / f
     px = (cam_x + xx * sx).astype(np.int32).ravel()
     py = (cam_y - zz * sy).astype(np.int32).ravel()
-    cols = image[vv, uu].reshape(-1, 3)
     ok = (px >= 0) & (px < plan_size) & (py >= 0) & (py < plan_size)
-    plan[py[ok], px[ok]] = cols[ok]
+    px, py = px[ok], py[ok]
+
+    if mode == 'color':
+        # nube de puntos con el color real de la imagen
+        cols = image[vv, uu].reshape(-1, 3)[ok]
+        plan[py, px] = cols
+    else:
+        # grilla de ocupacion: cuento cuantos puntos caen en cada celda. Las
+        # superficies verticales (paredes, muebles) acumulan muchos -> brillan;
+        # el ruido y el piso quedan tenues. Escala log + colormap tipo radar.
+        acc = np.zeros((plan_size, plan_size), np.float32)
+        np.add.at(acc, (py, px), 1.0)
+        acc = cv2.GaussianBlur(acc, (0, 0), 1.2)   # splat: rellena huecos
+        peak = float(acc.max())
+        if peak > 0:
+            norm = np.log1p(acc) / np.log1p(peak)
+            heat = cv2.applyColorMap((norm * 255).astype(np.uint8), cv2.COLORMAP_TURBO)
+            m = acc > 0.2
+            plan[m] = heat[m]
 
     # --- camara + cono de vision ---
     cv2.circle(plan, (int(cam_x), int(cam_y)), 5, (0, 255, 255), -1)
@@ -176,6 +196,7 @@ def run(image_path=None, use_camera=False):
     cv2.namedWindow(WINDOW)
     create_trackbar('Umbral cercania %', WINDOW, 99, initial=80)
     save_count = 0
+    plan_mode = 'heat'   # 'heat' = radar/ocupacion (nitido), 'color' = nube real
     tick_freq = cv2.getTickFrequency()
     last_tick = cv2.getTickCount()
     fps = 0.0
@@ -194,7 +215,7 @@ def run(image_path=None, use_camera=False):
         near_pct = min(get_trackbar_value('Umbral cercania %', WINDOW), 99)
         objects = detect_objects(depth, near_pct)
         view = montage(frame, colorize_depth(depth), draw_objects(frame, objects),
-                       build_floorplan(frame, depth, objects))
+                       build_floorplan(frame, depth, objects, mode=plan_mode))
 
         # FPS (cv2.getTickCount, no usa reloj de python)
         now = cv2.getTickCount()
@@ -203,8 +224,8 @@ def run(image_path=None, use_camera=False):
         if dt > 0:
             fps = 0.9 * fps + 0.1 * (1.0 / dt)
 
-        info = 'backend: %s | objetos: %d | %.1f fps  (s=guardar  q=salir)' % (
-            estimator.backend, len(objects), fps)
+        info = 'backend: %s | objetos: %d | %.1f fps | planta: %s  (c=planta s=guardar q=salir)' % (
+            estimator.backend, len(objects), fps, plan_mode)
         cv2.putText(view, info, (10, view.shape[0] - 12),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3)
         cv2.putText(view, info, (10, view.shape[0] - 12),
@@ -214,6 +235,8 @@ def run(image_path=None, use_camera=False):
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             break
+        elif key == ord('c'):
+            plan_mode = 'color' if plan_mode == 'heat' else 'heat'
         elif key == ord('s'):
             out_path = os.path.join(os.path.dirname(__file__),
                                     'reconstruccion_%d.png' % save_count)
