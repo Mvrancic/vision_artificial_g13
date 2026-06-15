@@ -11,6 +11,8 @@ from enfoque3_reconstruccion.midas import DepthEstimator, colorize_depth
 
 WINDOW = 'Enfoque 3 - Reconstructor de ambientes y planos 3D'
 
+PROC_WIDTH = 480  # ancho al que procesamos cada cuadro (para que el video corra fluido)
+
 
 def detect_objects(depth_norm, near_pct, min_area_frac=0.01):
     """Detecta muebles como blobs cercanos (profundidad alta) y estima su volumen.
@@ -36,12 +38,20 @@ def detect_objects(depth_norm, near_pct, min_area_frac=0.01):
         region = depth_norm[y:y + bh, x:x + bw]
         mean_depth = float(region.mean())
         depth_span = float(region.max() - region.min())
-        # proxy de volumen: area en pantalla * rango de profundidad del objeto
         volume = area * (depth_span + 0.05)
         objects.append({'bbox': (x, y, bw, bh), 'mean_depth': mean_depth,
-                        'volume': volume, 'contour': cnt})
+                        'volume': volume})
     objects.sort(key=lambda o: o['volume'], reverse=True)
-    return objects, mask
+    return objects
+
+
+def depth_label(mean_depth):
+    """Traduce la profundidad relativa a una etiqueta entendible."""
+    if mean_depth >= 0.66:
+        return 'CERCA'
+    if mean_depth >= 0.4:
+        return 'MEDIO'
+    return 'LEJOS'
 
 
 def draw_objects(image, objects):
@@ -49,110 +59,159 @@ def draw_objects(image, objects):
     for i, obj in enumerate(objects):
         x, y, bw, bh = obj['bbox']
         cv2.rectangle(out, (x, y), (x + bw, y + bh), (0, 255, 0), 2)
-        label = '#%d d=%.2f vol=%.0f' % (i + 1, obj['mean_depth'], obj['volume'])
-        cv2.putText(out, label, (x, max(y - 6, 12)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 3)
-        cv2.putText(out, label, (x, max(y - 6, 12)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 1)
+        label = '#%d %s (d=%.2f)' % (i + 1, depth_label(obj['mean_depth']), obj['mean_depth'])
+        cv2.putText(out, label, (x + 3, max(y - 6, 14)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3)
+        cv2.putText(out, label, (x + 3, max(y - 6, 14)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
     return out
 
 
-def build_floorplan(image, depth_norm, objects, plan_size=400):
-    """Vista de planta (top-down) back-proyectando los pixeles con la profundidad.
+def build_floorplan(image, depth_norm, objects, plan_size=420):
+    """Vista de planta (top-down): back-proyecta los pixeles con la profundidad.
 
-    Asume un modelo de camara pinhole simple (f ~ ancho). depth_norm 1=cerca.
-    Convierte cada pixel a coordenadas mundo (X lateral, Z hacia adelante) y lo
-    dibuja en una planta 2D, mas la huella de cada mueble detectado.
+    Modelo de camara pinhole simple (f ~ ancho). La camara esta abajo al centro y
+    mira hacia "arriba" del plano (lejos). Eje X = izquierda/derecha, eje vertical
+    del plano = distancia hacia adelante. La escala es RELATIVA (MiDaS da profundidad
+    relativa, no metros). Se dibuja grilla, ejes, la camara con su cono de vision y
+    la huella de cada mueble detectado.
     """
     h, w = depth_norm.shape
     f = 0.9 * w
-    cx, cy = w / 2.0, h / 2.0
-    plan = np.full((plan_size, plan_size, 3), 30, dtype=np.uint8)
+    cx = w / 2.0
+    cam_x = plan_size / 2.0           # camara: centro horizontal, base del plano
+    cam_y = plan_size - 12
+    sx = plan_size / 8.0              # escala horizontal (X mundo -> pixeles plano)
+    sy = plan_size / 5.0              # escala en profundidad
 
-    # Z = distancia hacia adelante (lejos = Z grande). depth_norm cerca=1 -> Z chico.
-    Z = (1.0 - depth_norm) * 4.0 + 0.5
+    plan = np.full((plan_size, plan_size, 3), 28, dtype=np.uint8)
 
-    step = max(1, h // 160)  # submuestreo para que sea rapido
-    for v in range(0, h, step):
-        for u in range(0, w, step):
-            z = Z[v, u]
-            x = (u - cx) * z / f
-            # mapear (x, z) a la planta: centro horizontal, lejos arriba
-            px = int(plan_size / 2 + x * (plan_size / 8.0))
-            py = int(plan_size - 1 - z * (plan_size / 5.0))
-            if 0 <= px < plan_size and 0 <= py < plan_size:
-                plan[py, px] = image[v, u]
+    # --- grilla de fondo ---
+    grid_color = (55, 55, 55)
+    for g in range(0, plan_size, plan_size // 8):
+        cv2.line(plan, (g, 0), (g, plan_size), grid_color, 1)
+        cv2.line(plan, (0, g), (plan_size, g), grid_color, 1)
 
-    # huella de los muebles detectados, etiquetada
+    # --- nube de puntos back-proyectada (vectorizado para que corra en video) ---
+    Z = (1.0 - depth_norm) * 4.0 + 0.5   # lejos = Z grande
+    step = max(1, h // 180)
+    vs = np.arange(0, h, step)
+    us = np.arange(0, w, step)
+    uu, vv = np.meshgrid(us, vs)
+    zz = Z[vv, uu]
+    xx = (uu - cx) * zz / f
+    px = (cam_x + xx * sx).astype(np.int32).ravel()
+    py = (cam_y - zz * sy).astype(np.int32).ravel()
+    cols = image[vv, uu].reshape(-1, 3)
+    ok = (px >= 0) & (px < plan_size) & (py >= 0) & (py < plan_size)
+    plan[py[ok], px[ok]] = cols[ok]
+
+    # --- camara + cono de vision ---
+    cv2.circle(plan, (int(cam_x), int(cam_y)), 5, (0, 255, 255), -1)
+    half = (w / 2.0) / f
+    for sign in (-1, 1):
+        far_z = 4.5
+        fx = cam_x + sign * half * far_z * sx
+        fy = cam_y - far_z * sy
+        cv2.line(plan, (int(cam_x), int(cam_y)), (int(fx), int(fy)), (0, 120, 120), 1)
+
+    # --- huella de los muebles detectados ---
     for i, obj in enumerate(objects):
         bx, by, bw, bh = obj['bbox']
         u = bx + bw / 2.0
         v = by + bh
         z = Z[min(int(v), h - 1), min(int(u), w - 1)]
         x = (u - cx) * z / f
-        px = int(plan_size / 2 + x * (plan_size / 8.0))
-        py = int(plan_size - 1 - z * (plan_size / 5.0))
-        if 0 <= px < plan_size and 0 <= py < plan_size:
-            cv2.circle(plan, (px, py), 7, (0, 255, 0), 2)
-            cv2.putText(plan, '#%d' % (i + 1), (px + 8, py),
+        ox = int(cam_x + x * sx)
+        oy = int(cam_y - z * sy)
+        if 0 <= ox < plan_size and 0 <= oy < plan_size:
+            cv2.circle(plan, (ox, oy), 8, (0, 255, 0), 2)
+            cv2.putText(plan, '#%d' % (i + 1), (ox + 10, oy + 4),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
-    cv2.putText(plan, 'PLANTA (top-down)', (10, 22),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    # --- titulos / ejes / escala ---
+    def txt(s, org, color=(255, 255, 255), scale=0.45):
+        cv2.putText(plan, s, org, cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 3)
+        cv2.putText(plan, s, org, cv2.FONT_HERSHEY_SIMPLEX, scale, color, 1)
+    txt('PLANTA (vista desde arriba)', (8, 20), (255, 255, 255), 0.5)
+    txt('LEJOS', (plan_size // 2 - 28, 40), (180, 180, 255))
+    txt('CAMARA', (int(cam_x) - 30, plan_size - 18), (0, 255, 255))
+    txt('izq', (6, plan_size // 2))
+    txt('der', (plan_size - 40, plan_size // 2))
+    txt('escala relativa', (8, plan_size - 8), (160, 160, 160), 0.4)
     return plan
 
 
-def montage(original, depth_color, objects_img, plan, target_w=900):
+def montage(original, depth_color, objects_img, plan, target_w=920):
     """Arma la grilla 2x2 con las cuatro vistas a un ancho fijo."""
     cell_w = target_w // 2
+
     def fit(img):
         h, w = img.shape[:2]
         return cv2.resize(img, (cell_w, int(h * cell_w / w)))
+
     a, b, c = fit(original), fit(depth_color), fit(objects_img)
-    # planta cuadrada al alto de las celdas
     d = cv2.resize(plan, (cell_w, a.shape[0]))
     top = np.hstack([a, b])
     bottom = np.hstack([c, d])
-    # igualar anchos por si difieren 1px
     return np.vstack([top, bottom[:, :top.shape[1]]])
 
 
 def run(image_path=None, use_camera=False):
-    if use_camera:
-        image = sources.grab_frame_from_camera()
-        if image is None:
-            print('Captura cancelada.')
-            return
-    else:
-        if image_path is None:
-            image_path = os.path.join(sources.REPO_IMAGES, 'road.jpg')
-        image = sources.read_image(image_path)
-    image = sources.resize_to_width(image, 640)
-
     print('Cargando estimador de profundidad...')
     estimator = DepthEstimator()
     print('Backend de profundidad:', estimator.backend)
-    depth = estimator.predict(image)
+
+    cap = None
+    static_frame = None
+    static_depth = None
+    if use_camera:
+        cap = sources.open_camera()
+    else:
+        if image_path is None:
+            image_path = os.path.join(sources.REPO_IMAGES, 'road.jpg')
+        static_frame = sources.resize_to_width(sources.read_image(image_path), PROC_WIDTH)
+        static_depth = estimator.predict(static_frame)  # se calcula una sola vez
 
     cv2.namedWindow(WINDOW)
     create_trackbar('Umbral cercania %', WINDOW, 99, initial=80)
     save_count = 0
+    tick_freq = cv2.getTickFrequency()
+    last_tick = cv2.getTickCount()
+    fps = 0.0
 
     while True:
-        near_pct = min(get_trackbar_value('Umbral cercania %', WINDOW), 99)
-        objects, _ = detect_objects(depth, near_pct)
-        depth_color = colorize_depth(depth)
-        objects_img = draw_objects(image, objects)
-        plan = build_floorplan(image, depth, objects)
-        view = montage(image, depth_color, objects_img, plan)
+        if cap is not None:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frame = sources.resize_to_width(frame, PROC_WIDTH)
+            depth = estimator.predict(frame)      # MiDaS en vivo, cuadro a cuadro
+        else:
+            frame = static_frame
+            depth = static_depth
 
-        cv2.putText(view, 'backend: %s  | objetos: %d  (s=guardar q=salir)'
-                    % (estimator.backend, len(objects)),
-                    (10, view.shape[0] - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                    (255, 255, 255), 1)
+        near_pct = min(get_trackbar_value('Umbral cercania %', WINDOW), 99)
+        objects = detect_objects(depth, near_pct)
+        view = montage(frame, colorize_depth(depth), draw_objects(frame, objects),
+                       build_floorplan(frame, depth, objects))
+
+        # FPS (cv2.getTickCount, no usa reloj de python)
+        now = cv2.getTickCount()
+        dt = (now - last_tick) / tick_freq
+        last_tick = now
+        if dt > 0:
+            fps = 0.9 * fps + 0.1 * (1.0 / dt)
+
+        info = 'backend: %s | objetos: %d | %.1f fps  (s=guardar  q=salir)' % (
+            estimator.backend, len(objects), fps)
+        cv2.putText(view, info, (10, view.shape[0] - 12),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3)
+        cv2.putText(view, info, (10, view.shape[0] - 12),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         cv2.imshow(WINDOW, view)
 
-        key = cv2.waitKey(20) & 0xFF
+        key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             break
         elif key == ord('s'):
@@ -162,8 +221,10 @@ def run(image_path=None, use_camera=False):
             print('Guardado:', out_path)
             save_count += 1
 
+    if cap is not None:
+        cap.release()
     cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':
-    run()
+    run(use_camera=True)
