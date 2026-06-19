@@ -1,0 +1,7 @@
+numpy>=2.0
+opencv-python>=4.13
+gradio>=4.44
+huggingface_hub<1.0
+simple-lama-inpainting>=0.1.0
+rembg>=2.0.67
+onnxruntime>=1.19

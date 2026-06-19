@@ -7,34 +7,39 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from common import sources
 from common.trackbar import create_trackbar, get_trackbar_value
+from enfoque2_renovacion.backends import clean_mask, inpaint_lama, inpaint_opencv, segment_object as segment_object_backend
 
 WINDOW = 'Enfoque 2 - Renovacion inteligente (borrar + inpainting)'
 
 
-def segment_object(image, rect):
-    """Refina la seleccion del usuario con grabCut y devuelve la mascara del mueble.
+def segment_object(image, rect, mode="auto"):
+    """Segmenta el objeto dentro de la ROI usando el backend indicado."""
+    return segment_object_backend(image, rect, mode=mode)
 
-    rect = (x, y, w, h). Reutiliza la idea de practica_segmentacion/grabcut.py.
+
+def remove_and_fill(image, object_mask, radius, method, dilate_iter, expand_px=0, feather_px=0):
+    """Borra el objeto y reconstruye el fondo con inpainting.
+
+    method:
+      0 -> TELEA
+      1 -> Navier-Stokes
+      2 -> LaMa
     """
-    mask = np.zeros(image.shape[:2], np.uint8)
-    bgd_model = np.zeros((1, 65), np.float64)
-    fgd_model = np.zeros((1, 65), np.float64)
-    cv2.grabCut(image, mask, rect, bgd_model, fgd_model, 8, cv2.GC_INIT_WITH_RECT)
-    # 1 y 3 = foreground (seguro / probable)
-    object_mask = np.where((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD), 255, 0)
-    return object_mask.astype(np.uint8)
-
-
-def remove_and_fill(image, object_mask, radius, method, dilate_iter):
-    """Borra el objeto y reconstruye el fondo con inpainting."""
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    mask = cv2.dilate(object_mask, kernel, iterations=dilate_iter)
-    flag = cv2.INPAINT_TELEA if method == 0 else cv2.INPAINT_NS
-    return cv2.inpaint(image, mask, max(radius, 1), flag), mask
+    mask = clean_mask(
+        object_mask,
+        dilate_iter=dilate_iter,
+        expand_px=expand_px,
+        feather_px=feather_px,
+    )
+    if method == 2:
+        result = inpaint_lama(image, mask)
+        return result.image, result.mask, result.backend_name
+    result = inpaint_opencv(image, mask, radius=radius, method=method)
+    return result.image, result.mask, result.backend_name
 
 
 def draw_help(image, method, radius, dilate_iter):
-    method_name = 'TELEA' if method == 0 else 'NS'
+    method_name = 'TELEA' if method == 0 else 'NS' if method == 1 else 'LaMa'
     lines = [
         'Metodo: %s (m=cambiar)  radio=%d  dilatacion=%d' % (method_name, radius, dilate_iter),
         'r=re-seleccionar mueble   s=guardar   q=salir',
@@ -69,7 +74,9 @@ def run(image_path=None, use_camera=False):
         image = sources.read_image(image_path)
     image = sources.resize_to_width(image, 900)
 
-    object_mask = select_and_segment(image)
+    segmented = select_and_segment(image)
+    object_mask = segmented[0] if segmented is not None else None
+    segment_name = segmented[1] if segmented is not None else "N/A"
     if object_mask is None:
         print('No se selecciono ningun objeto.')
         return
@@ -83,7 +90,12 @@ def run(image_path=None, use_camera=False):
     while True:
         radius = get_trackbar_value('Radio inpaint', WINDOW)
         dilate_iter = get_trackbar_value('Dilatacion', WINDOW)
-        result, mask = remove_and_fill(image, object_mask, radius, method, dilate_iter)
+        try:
+            result, mask, backend_name = remove_and_fill(image, object_mask, radius, method, dilate_iter)
+        except Exception as exc:
+            result = image.copy()
+            mask = clean_mask(object_mask, dilate_iter=dilate_iter)
+            backend_name = f'Error: {exc}'
 
         # vista comparativa: original con mascara resaltada | resultado limpio
         marked = image.copy()
@@ -91,17 +103,25 @@ def run(image_path=None, use_camera=False):
         marked = cv2.addWeighted(image, 0.6, marked, 0.4, 0)
         combined = np.hstack([marked, result])
         draw_help(combined, method, radius, dilate_iter)
+        cv2.putText(combined, backend_name, (10, combined.shape[0] - 16),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 3)
+        cv2.putText(combined, backend_name, (10, combined.shape[0] - 16),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
+        cv2.putText(combined, f'Segmentacion: {segment_name}', (10, combined.shape[0] - 44),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 3)
+        cv2.putText(combined, f'Segmentacion: {segment_name}', (10, combined.shape[0] - 44),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
         cv2.imshow(WINDOW, combined)
 
         key = cv2.waitKey(20) & 0xFF
         if key == ord('q'):
             break
         elif key == ord('m'):
-            method = 1 - method
+            method = (method + 1) % 3
         elif key == ord('r'):
-            new_mask = select_and_segment(image)
-            if new_mask is not None:
-                object_mask = new_mask
+            segmented = select_and_segment(image)
+            if segmented is not None:
+                object_mask, segment_name = segmented
         elif key == ord('s'):
             out_path = os.path.join(os.path.dirname(__file__),
                                     'limpio_%d.png' % save_count)

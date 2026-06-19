@@ -13,6 +13,20 @@ source .venv/bin/activate
 python tp_final/app.py
 ```
 
+## Frontend web
+
+Se agregó una interfaz en Gradio dentro de `tp_final/front/` para usar los tres
+enfoques desde el navegador.
+
+```bash
+# desde la raíz del repo
+source tp_final/.venv/bin/activate
+python tp_final/front/app.py
+```
+
+La app levanta un servidor local en `http://127.0.0.1:7860` o en el siguiente
+puerto disponible.
+
 `app.py` muestra un menú para elegir enfoque y fuente (imagen del repo o cámara).
 Cada enfoque también se puede correr directo:
 
@@ -39,7 +53,8 @@ escala y ángulo a la perspectiva de la habitación, respetando las líneas de f
 El usuario selecciona un mueble; la app detecta sus bordes, lo elimina y
 **rellena** la pared/piso ocultos.
 - **Técnica:** `selectROI` + `grabCut` (de `practica_segmentacion`) para una máscara
-  fina, dilatación e **inpainting** (`cv2.inpaint`, TELEA / Navier-Stokes).
+  fina, refinado morfológico e **inpainting** con dos familias de backend:
+  `cv2.inpaint` (TELEA / Navier-Stokes) y **LaMa** para relleno más robusto.
 - **Controles:** trackbars de radio de inpaint y dilatación; `m` cambia el método,
   `r` re-selecciona, `s` guarda. Vista comparativa (máscara | resultado limpio).
 
