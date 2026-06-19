@@ -1,0 +1,20 @@
+{
+  "image_size": 128,
+  "max_per_class": 150,
+  "total_images": 1200,
+  "classes": {
+    "erythroblast": 150,
+    "eosinophil": 150,
+    "basophil": 150,
+    "ig": 150,
+    "monocyte": 150,
+    "lymphocyte": 150,
+    "platelet": 150,
+    "neutrophil": 150
+  },
+  "splits": {
+    "train": 840,
+    "val": 176,
+    "test": 184
+  }
+}

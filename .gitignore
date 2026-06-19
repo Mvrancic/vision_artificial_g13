@@ -142,6 +142,16 @@ cython_debug/
 media
 
 .idea/
+.DS_Store
+
+# Practica segmentacion - generated and large local artifacts
+practica_segmentacion/dataset.zip
+practica_segmentacion/data/
+practica_segmentacion/.venv/
+practica_segmentacion/outputs/predictions/
+practica_segmentacion/outputs/predictions_manual/
+practica_segmentacion/outputs/mask_examples/
+practica_segmentacion/outputs/unet_bloodcells_last.keras
 
 # TP Deteccion - local captures (privacy-sensitive)
 tp_deteccion/generated-files/captures/
