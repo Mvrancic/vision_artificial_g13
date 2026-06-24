@@ -67,7 +67,7 @@ def draw_objects(image, objects):
     return out
 
 
-def build_floorplan(image, depth_norm, objects, plan_size=420, mode='heat'):
+def build_floorplan(image, depth_norm, objects, plan_size=420, mode='heat', synthetic_point=None):
     """Vista de planta (top-down): back-proyecta los pixeles con la profundidad.
 
     Modelo de camara pinhole simple (f ~ ancho). La camara esta abajo al centro y
@@ -78,6 +78,12 @@ def build_floorplan(image, depth_norm, objects, plan_size=420, mode='heat'):
 
     mode='heat': grilla de ocupacion estilo radar (acumula densidad -> superficies
     solidas y nitidas). mode='color': nube de puntos con el color real (mas ruidosa).
+
+    synthetic_point: (u, v) en pixeles de un mueble agregado por homografia (enfoque 1),
+    no fotografiado. Se ubica en el plano con la MISMA formula de back-proyeccion que
+    los objetos detectados, pero sin depender de que la red de profundidad lo detecte
+    como blob (un sprite pegado no tiene las pistas visuales de un objeto real). Se
+    dibuja distinto (magenta) para diferenciarlo de los detectados por profundidad.
     """
     h, w = depth_norm.shape
     f = 0.9 * w
@@ -148,6 +154,20 @@ def build_floorplan(image, depth_norm, objects, plan_size=420, mode='heat'):
             cv2.circle(plan, (ox, oy), 8, (0, 255, 0), 2)
             cv2.putText(plan, '#%d' % (i + 1), (ox + 10, oy + 4),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+
+    # --- mueble agregado por homografia (posicion conocida, no detectada) ---
+    if synthetic_point is not None:
+        u, v = synthetic_point
+        u = min(max(int(u), 0), w - 1)
+        v = min(max(int(v), 0), h - 1)
+        z = Z[v, u]
+        x = (u - cx) * z / f
+        ox = int(cam_x + x * sx)
+        oy = int(cam_y - z * sy)
+        if 0 <= ox < plan_size and 0 <= oy < plan_size:
+            cv2.drawMarker(plan, (ox, oy), (255, 0, 255), cv2.MARKER_DIAMOND, 16, 2)
+            cv2.putText(plan, 'NUEVO', (ox + 10, oy + 4),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
 
     # --- titulos / ejes / escala ---
     def txt(s, org, color=(255, 255, 255), scale=0.45):

@@ -22,57 +22,57 @@ def annotate_selection(image: np.ndarray, points: list[list[int]]) -> np.ndarray
     return utils.draw_points(rgb, points)
 
 
-def _rgba_alpha_mask(image: np.ndarray | None) -> np.ndarray | None:
-    if image is None:
-        return None
-    if image.ndim == 3 and image.shape[2] == 4:
-        return image[:, :, 3]
-    return None
+def load_custom_sprite(filepath: str) -> tuple[np.ndarray, str | None]:
+    """Carga un PNG subido por el usuario como sprite RGBA (BGR + alfa).
+
+    Si la imagen no tiene canal alfa (no es un PNG con fondo transparente), se
+    la deja igual pero se devuelve una advertencia: sin transparencia el recorte
+    se va a ver como un rectangulo opaco, no como el mueble recortado.
+    """
+    sprite = cv2.imread(filepath, cv2.IMREAD_UNCHANGED)
+    if sprite is None:
+        raise ValueError(f"No se pudo leer la imagen: {filepath}")
+
+    warning = None
+    if sprite.ndim == 2:
+        sprite = cv2.cvtColor(sprite, cv2.COLOR_GRAY2BGRA)
+        warning = "La imagen no tiene canal alfa: se va a ver como un rectángulo opaco. Usá un PNG con fondo transparente."
+    elif sprite.shape[2] == 3:
+        alpha = np.full(sprite.shape[:2], 255, dtype=np.uint8)
+        sprite = np.dstack([sprite, alpha])
+        warning = "La imagen no tiene canal alfa: se va a ver como un rectángulo opaco. Usá un PNG con fondo transparente."
+
+    return sprite, warning
 
 
-def _extract_editor_points(editor_value) -> tuple[np.ndarray, list[list[int]]]:
-    if not isinstance(editor_value, dict):
-        raise ValueError("No hay imagen cargada.")
+def floor_contact_point(
+    points: list[list[int]],
+    height_ratio: float,
+    offset_x: float = 0.0,
+    offset_y: float = 0.0,
+    rotation_deg: float = 0.0,
+    scale_x: float = 1.0,
+    scale_y: float = 1.0,
+) -> tuple[int, int]:
+    """Punto (u, v) en pixeles de la imagen donde el mueble toca el piso.
 
-    background = utils.ensure_rgb(editor_value.get("background"))
-    if background is None:
-        raise ValueError("No hay imagen cargada.")
-
-    mask = np.zeros(background.shape[:2], dtype=np.uint8)
-    for layer in editor_value.get("layers") or []:
-        alpha = _rgba_alpha_mask(layer)
-        if alpha is not None:
-            mask = np.maximum(mask, alpha.astype(np.uint8))
-
-    if not np.any(mask):
-        raise ValueError("Marcá 4 puntos sobre el piso antes de continuar.")
-
-    _, binary = cv2.threshold(mask, 20, 255, cv2.THRESH_BINARY)
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary, connectivity=8)
-
-    components: list[tuple[int, list[int]]] = []
-    for label in range(1, num_labels):
-        area = int(stats[label, cv2.CC_STAT_AREA])
-        if area < 12:
-            continue
-        cx, cy = centroids[label]
-        components.append((area, [int(round(cx)), int(round(cy))]))
-
-    if len(components) < 4:
-        raise ValueError("Necesitás marcar 4 puntos bien separados sobre el piso.")
-
-    components.sort(key=lambda item: item[0], reverse=True)
-    points = [point for _, point in components[:4]]
-    return background, points
-
-
-def annotate_editor_selection(editor_value) -> tuple[np.ndarray, str]:
-    background, points = _extract_editor_points(editor_value)
-    if len(points) != 4:
-        raise ValueError("Necesitás marcar exactamente 4 puntos.")
-    ordered = geometry.order_points(np.array(points, dtype="float32")).astype(int).tolist()
-    preview = utils.draw_points(background, ordered)
-    return preview, "Piso previsualizado. Si quedó mal, limpiá las marcas y volvé a pintar 4 puntos."
+    Es el punto medio de la arista de base del cuadrilatero parado, despues de
+    aplicar el mismo mover/rotar/escalar que se uso para renderizarlo. Se usa
+    para ubicar el mueble en el plano de Reconstruccion sin depender de que
+    la red de profundidad lo "redescubra" en la foto (no tiene forma de saberlo,
+    es un sprite pegado, no un objeto real fotografiado).
+    """
+    floor_quad = geometry.order_points(np.array(points, dtype="float32"))
+    standing = geometry.standing_quad_from_floor(floor_quad, height_ratio)
+    standing = geometry.transform_quad(
+        standing,
+        offset=(float(offset_x), float(offset_y)),
+        rotation_deg=rotation_deg,
+        scale=(float(scale_x), float(scale_y)),
+    )
+    base_right, base_left = standing[2], standing[3]
+    contact = (base_right + base_left) / 2.0
+    return int(round(contact[0])), int(round(contact[1]))
 
 
 def render_result(
@@ -80,46 +80,38 @@ def render_result(
     points: list[list[int]],
     furniture_name: str,
     height_ratio: float,
-    shadow_opacity: float,
-    show_shadow: bool,
-) -> np.ndarray:
+    offset_x: float = 0.0,
+    offset_y: float = 0.0,
+    rotation_deg: float = 0.0,
+    scale_x: float = 1.0,
+    scale_y: float = 1.0,
+    custom_sprite: np.ndarray | None = None,
+) -> tuple[np.ndarray, tuple[int, int]]:
     rgb = utils.ensure_rgb(image)
     if rgb is None:
         raise ValueError("No hay imagen cargada.")
     if len(points) != 4:
-        raise ValueError("Necesitás marcar exactamente 4 puntos del piso.")
-    if furniture_name not in FURNITURE_MAP:
-        raise ValueError(f"Mueble desconocido: {furniture_name}")
+        raise ValueError("Marcá 4 puntos sobre el piso antes de renderizar.")
+
+    if custom_sprite is not None:
+        sprite = custom_sprite
+    else:
+        if furniture_name not in FURNITURE_MAP:
+            raise ValueError(f"Mueble desconocido: {furniture_name}")
+        sprite = FURNITURE_MAP[furniture_name]
 
     background = utils.rgb_to_bgr(rgb)
     floor_quad = geometry.order_points(np.array(points, dtype="float32"))
-    sprite = FURNITURE_MAP[furniture_name]
-
-    out = background.copy()
-    if show_shadow and shadow_opacity > 0:
-        light = geometry.estimate_light_direction(background)
-        out = geometry.project_shadow(out, floor_quad, light, shadow_opacity)
+    offset = (float(offset_x), float(offset_y))
 
     standing = geometry.standing_quad_from_floor(floor_quad, height_ratio)
-    bgr, alpha = geometry.warp_sprite_to_quad(sprite, standing, out.shape[:2])
-    out = geometry.alpha_composite(out, bgr, alpha)
-    return utils.bgr_to_rgb(out)
-
-
-def render_from_editor(
-    editor_value,
-    furniture_name: str,
-    height_ratio: float,
-    shadow_opacity: float,
-    show_shadow: bool,
-) -> np.ndarray:
-    background, points = _extract_editor_points(editor_value)
-    ordered = geometry.order_points(np.array(points, dtype="float32")).astype(int).tolist()
-    return render_result(
-        background,
-        ordered,
-        furniture_name,
-        height_ratio,
-        shadow_opacity,
-        show_shadow,
+    standing = geometry.transform_quad(
+        standing, offset=offset, rotation_deg=rotation_deg, scale=(float(scale_x), float(scale_y))
     )
+    bgr, alpha = geometry.warp_sprite_to_quad(sprite, standing, background.shape[:2])
+    out = geometry.alpha_composite(background, bgr, alpha)
+
+    base_right, base_left = standing[2], standing[3]
+    contact = (base_right + base_left) / 2.0
+    contact_point = (int(round(contact[0])), int(round(contact[1])))
+    return utils.bgr_to_rgb(out), contact_point

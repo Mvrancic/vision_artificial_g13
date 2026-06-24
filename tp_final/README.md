@@ -7,10 +7,18 @@ trackbars y mouse, consistente con `tp_deteccion`.
 
 ## Cómo correr
 
+`tp_final` necesita **Python 3.10+** (por `simple-lama-inpainting`, `rembg` y
+`torch`). El venv del resto del repo es Python 3.9, así que `tp_final` usa su
+**propio venv** en `tp_final/.venv`.
+
 ```bash
-# desde la raíz del repo, con el venv activado
+# una sola vez, desde tp_final/
+python3.12 -m venv .venv   # o python3.11/python3.10
 source .venv/bin/activate
-python tp_final/app.py
+pip install -r requirements.txt
+
+# version de consola (ventanas OpenCV)
+python app.py
 ```
 
 ## Frontend web
@@ -19,9 +27,8 @@ Se agregó una interfaz en Gradio dentro de `tp_final/front/` para usar los tres
 enfoques desde el navegador.
 
 ```bash
-# desde la raíz del repo
-source tp_final/.venv/bin/activate
-python tp_final/front/app.py
+# desde tp_final/, con el venv de arriba activado
+python front/app.py
 ```
 
 La app levanta un servidor local en `http://127.0.0.1:7860` o en el siguiente
@@ -31,9 +38,9 @@ puerto disponible.
 Cada enfoque también se puede correr directo:
 
 ```bash
-python tp_final/enfoque1_perspectiva/main.py
-python tp_final/enfoque2_renovacion/main.py
-python tp_final/enfoque3_reconstruccion/main.py
+python enfoque1_perspectiva/main.py
+python enfoque2_renovacion/main.py
+python enfoque3_reconstruccion/main.py
 ```
 
 ## Enfoques

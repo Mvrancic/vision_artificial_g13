@@ -50,7 +50,7 @@ def pick_port(preferred: int = 7860, attempts: int = 20) -> int:
 def main() -> None:
     patch_gradio_api_info()
     demo = build_demo()
-    demo.launch(server_name="127.0.0.1", server_port=pick_port(), show_api=False)
+    demo.launch(server_name="127.0.0.1", server_port=pick_port(), footer_links=[], show_error=True)
 
 
 if __name__ == "__main__":

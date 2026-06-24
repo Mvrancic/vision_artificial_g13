@@ -3,7 +3,7 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-from tp_final.enfoque2_renovacion.backends import backend_available, clean_mask
+from tp_final.enfoque2_renovacion.backends import backend_available, segment_object
 from tp_final.enfoque2_renovacion.main import remove_and_fill
 from tp_final.front import utils
 
@@ -25,67 +25,33 @@ def annotate_selection(image: np.ndarray, points: list[list[int]]) -> tuple[np.n
     return preview, bbox
 
 
-def _rgba_alpha_mask(image: np.ndarray | None) -> np.ndarray | None:
-    if image is None:
-        return None
-    if image.ndim == 3 and image.shape[2] == 4:
-        return image[:, :, 3]
-    return None
-
-
-def _extract_editor_payload(editor_value) -> tuple[np.ndarray, np.ndarray]:
-    if not isinstance(editor_value, dict):
-        raise ValueError("No hay imagen cargada.")
-
-    background = utils.ensure_rgb(editor_value.get("background"))
-    if background is None:
-        raise ValueError("No hay imagen cargada.")
-
-    mask = np.zeros(background.shape[:2], dtype=np.uint8)
-    layers = editor_value.get("layers") or []
-    for layer in layers:
-        alpha = _rgba_alpha_mask(layer)
-        if alpha is not None:
-            mask = np.maximum(mask, alpha.astype(np.uint8))
-
-    composite = editor_value.get("composite")
-    if composite is not None and not np.any(mask):
-        composite_rgb = utils.ensure_rgb(composite)
-        if composite_rgb is not None:
-            diff = cv2.absdiff(background, composite_rgb)
-            diff_gray = cv2.cvtColor(diff, cv2.COLOR_RGB2GRAY)
-            mask = np.where(diff_gray > 20, 255, 0).astype(np.uint8)
-
-    if not np.any(mask):
-        raise ValueError("Pintá la zona a eliminar sobre la imagen antes de ejecutar el borrado.")
-
-    return background, mask
-
-
-def run_renovation(
-    editor_value,
+def run_renovation_from_points(
+    image: np.ndarray,
+    points: list[list[int]],
     radius: int,
     method_name: str,
     dilate_iter: int,
     expand_px: int,
     feather_px: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    rgb, object_mask = _extract_editor_payload(editor_value)
+    rgb = utils.ensure_rgb(image)
+    if rgb is None:
+        raise ValueError("No hay imagen cargada.")
+
+    rect = utils.build_bbox_from_points(points)
+    if rect is None:
+        raise ValueError("Marcá 2 puntos (esquina superior izq. y esquina inferior der.) sobre el objeto a borrar.")
+
     bgr = utils.rgb_to_bgr(rgb)
-    preview_mask = clean_mask(
-        object_mask,
-        dilate_iter=int(dilate_iter),
-        expand_px=int(expand_px),
-        feather_px=int(feather_px),
-    )
+    object_mask, segment_name = segment_object(bgr, rect, mode="auto")
     result, dilated_mask, backend_name = remove_and_fill(
         bgr,
-        preview_mask,
+        object_mask,
         radius=int(radius),
         method=METHOD_MAP[method_name],
         dilate_iter=int(dilate_iter),
-        expand_px=0,
-        feather_px=0,
+        expand_px=int(expand_px),
+        feather_px=int(feather_px),
     )
 
     masked = bgr.copy()
@@ -94,7 +60,7 @@ def run_renovation(
     result_rgb = utils.bgr_to_rgb(result)
     cv2.putText(
         result_rgb,
-        f"Máscara manual -> {backend_name}",
+        f"{segment_name} -> {backend_name}",
         (12, 28),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.6,
