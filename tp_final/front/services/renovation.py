@@ -15,14 +15,18 @@ METHOD_MAP = {
 }
 
 
-def annotate_selection(image: np.ndarray, points: list[list[int]]) -> tuple[np.ndarray, tuple[int, int, int, int] | None]:
+def annotate_selection(image: np.ndarray, points: list[list[int]]) -> tuple[np.ndarray, None]:
     rgb = utils.ensure_rgb(image)
     if rgb is None:
         raise ValueError("No hay imagen cargada.")
-    bbox = utils.build_bbox_from_points(points)
     preview = utils.draw_points(rgb, points)
-    preview = utils.draw_bbox(preview, bbox)
-    return preview, bbox
+    if len(points) == 4:
+        # Overlay semitransparente del área seleccionada
+        poly_mask = utils.build_polygon_mask(points, rgb.shape)
+        filled = preview.copy()
+        filled[poly_mask > 0] = (64, 220, 100)
+        preview = cv2.addWeighted(preview, 0.78, filled, 0.22, 0)
+    return preview, None
 
 
 def run_renovation_from_points(
@@ -38,12 +42,16 @@ def run_renovation_from_points(
     if rgb is None:
         raise ValueError("No hay imagen cargada.")
 
+    if len(points) != 4:
+        raise ValueError("Marcá los 4 vértices del área a borrar antes de procesar.")
+
     rect = utils.build_bbox_from_points(points)
     if rect is None:
-        raise ValueError("Marcá 2 puntos (esquina superior izq. y esquina inferior der.) sobre el objeto a borrar.")
+        raise ValueError("Los 4 puntos no definen un área válida.")
 
     bgr = utils.rgb_to_bgr(rgb)
-    object_mask, segment_name = segment_object(bgr, rect, mode="auto")
+    polygon_mask = utils.build_polygon_mask(points, bgr.shape)
+    object_mask, segment_name = segment_object(bgr, rect, mode="auto", polygon_mask=polygon_mask)
     result, dilated_mask, backend_name = remove_and_fill(
         bgr,
         object_mask,

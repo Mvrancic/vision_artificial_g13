@@ -119,6 +119,19 @@ def build_bbox_from_points(points: list[list[int]] | list[tuple[int, int]]) -> t
     return x_min, y_min, width, height
 
 
+def build_polygon_mask(
+    points: list[list[int]] | list[tuple[int, int]],
+    shape: tuple[int, ...],
+) -> np.ndarray:
+    """Máscara binaria con el interior del polígono relleno."""
+    mask = np.zeros(shape[:2], dtype=np.uint8)
+    if len(points) < 3:
+        return mask
+    pts = np.array([[int(p[0]), int(p[1])] for p in points], dtype=np.int32)
+    cv2.fillPoly(mask, [pts], 255)
+    return mask
+
+
 def status_for_points(points: list[list[int]] | list[tuple[int, int]], expected: int) -> str:
     count = len(points)
     if count >= expected:

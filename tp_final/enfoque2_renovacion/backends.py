@@ -244,7 +244,12 @@ def _run_rembg_crop(image: np.ndarray, rect: tuple[int, int, int, int], model_na
     return _paste_crop_mask(mask, crop_rect, image.shape[:2])
 
 
-def segment_object(image: np.ndarray, rect: tuple[int, int, int, int], mode: str = "auto") -> tuple[np.ndarray, str]:
+def segment_object(
+    image: np.ndarray,
+    rect: tuple[int, int, int, int],
+    mode: str = "auto",
+    polygon_mask: np.ndarray | None = None,
+) -> tuple[np.ndarray, str]:
     x, y, w, h = rect
     if w <= 0 or h <= 0:
         raise ValueError("La ROI no es válida.")
@@ -281,6 +286,10 @@ def segment_object(image: np.ndarray, rect: tuple[int, int, int, int], mode: str
             if merged_score >= (_mask_score(best_mask, rect) - 0.03):
                 best_name = f"{best_name} + GrabCut"
                 best_mask = merged
+
+    # Limitar la máscara al polígono del usuario (si se proporcionó)
+    if polygon_mask is not None:
+        best_mask = cv2.bitwise_and(best_mask, polygon_mask)
 
     return best_mask, best_name
 

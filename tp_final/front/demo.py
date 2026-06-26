@@ -167,30 +167,31 @@ def clear_custom_furniture():
 def reset_renovation(image):
     base = _prep(image)
     if base is None:
-        return None, [], "Subí o capturá una foto, después click en las 2 esquinas del objeto a borrar."
-    return base, [], "0/2 puntos. Click en la esquina superior izquierda del objeto."
+        return None, [], "Subí o capturá una foto, después marcá los 4 vértices del objeto a borrar."
+    return base, [], "0/4 puntos. Click en el primer vértice del objeto."
 
 
 def add_renovation_point(evt: gr.SelectData, base, points):
     if base is None:
         raise gr.Error("Subí o capturá una foto antes de marcar la zona a borrar.")
     points = list(points or [])
-    if len(points) >= 2:
+    if len(points) >= 4:
         points = []
     x, y = evt.index
     points.append([int(x), int(y)])
-    preview, _bbox = renovation.annotate_selection(base, points)
-    if len(points) < 2:
-        status = "1/2 puntos. Click en la esquina inferior derecha del objeto."
+    preview, _ = renovation.annotate_selection(base, points)
+    n = len(points)
+    if n < 4:
+        status = f"{n}/4 puntos. Click en el vértice {n + 1}."
     else:
-        status = "ROI lista. Click en 'Eliminar objeto' (o seguí clickeando para reiniciar la selección)."
+        status = "4/4 — área definida. Click en 'Eliminar objeto' (o seguí clickeando para reiniciar)."
     return preview, points, status
 
 
 def clear_renovation_selection(base):
     if base is None:
-        return None, [], "Subí o capturá una foto, después click en las 2 esquinas del objeto a borrar."
-    return base, [], "0/2 puntos. Click en la esquina superior izquierda del objeto."
+        return None, [], "Subí o capturá una foto, después marcá los 4 vértices del objeto a borrar."
+    return base, [], "0/4 puntos. Click en el primer vértice del objeto."
 
 
 def update_renovation_backend(method_name):
@@ -461,8 +462,8 @@ def build_demo() -> gr.Blocks:
             # ----------------------------------------------------------------
             with gr.Tab("Renovacion", id="tab_renovacion"):
                 gr.Markdown(
-                    "Subí una foto y hacé **click en 2 esquinas** (superior izquierda e inferior derecha) "
-                    "del objeto que querés borrar. La segmentación del objeto dentro de esa zona es automática."
+                    "Subí una foto y hacé **4 clicks** sobre los vértices del objeto a borrar (como en Perspectiva). "
+                    "El área puede ser un cuadrilátero irregular — la segmentación se limita al interior de ese polígono."
                 )
                 renovation_base = gr.State(default_renovation)
                 renovation_points = gr.State([])
@@ -480,7 +481,7 @@ def build_demo() -> gr.Blocks:
                     clear_mask_btn = gr.Button("Limpiar seleccion")
                     run_renovation_btn = gr.Button("Eliminar objeto", variant="primary")
                 renovation_status = gr.Markdown(
-                    "0/2 puntos. Click en la esquina superior izquierda del objeto."
+                    "0/4 puntos. Click en el primer vértice del objeto."
                 )
                 with gr.Row():
                     with gr.Column(scale=1):
