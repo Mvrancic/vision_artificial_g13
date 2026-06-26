@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import cv2
 from pathlib import Path
 
 import gradio as gr
@@ -19,7 +20,64 @@ def _prep(image):
     return utils.resize_for_display(rgb, max_width=900, max_height=620)
 
 
-# --- Perspectiva: click para marcar 4 puntos sobre el piso -----------------
+# --- Camera helpers ---
+
+def _apply_camera_transforms(image, flip_h: bool, rotate: str):
+    if image is None:
+        return None
+    rgb = utils.ensure_rgb(image)
+    if flip_h:
+        rgb = cv2.flip(rgb, 1)
+    rotations = {
+        "90° ↻": cv2.ROTATE_90_CLOCKWISE,
+        "180°": cv2.ROTATE_180,
+        "270° ↺": cv2.ROTATE_90_COUNTERCLOCKWISE,
+    }
+    if rotate in rotations:
+        rgb = cv2.rotate(rgb, rotations[rotate])
+    return utils.resize_for_display(rgb, max_width=900, max_height=620)
+
+
+def cam_preview_update(image, flip_h, rotate):
+    img = _apply_camera_transforms(image, flip_h, rotate)
+    if image is None:
+        return None, "Capturá una foto con el botón 📷 de arriba."
+    status = "Foto lista"
+    parts = []
+    if flip_h:
+        parts.append("volteada")
+    if rotate != "0°":
+        parts.append(f"rotada {rotate}")
+    if parts:
+        status += " (" + ", ".join(parts) + ")"
+    status += " — elegí el proceso de abajo para usarla."
+    return img, status
+
+
+def cam_to_perspective(image, flip_h, rotate):
+    img = _apply_camera_transforms(image, flip_h, rotate)
+    if img is None:
+        raise gr.Error("Capturá una foto primero usando el botón de la cámara (📷).")
+    base, points, status = reset_perspective(img)
+    return base, base, points, status, gr.Tabs(selected="tab_perspectiva")
+
+
+def cam_to_renovation(image, flip_h, rotate):
+    img = _apply_camera_transforms(image, flip_h, rotate)
+    if img is None:
+        raise gr.Error("Capturá una foto primero usando el botón de la cámara (📷).")
+    base, points, status = reset_renovation(img)
+    return base, base, points, status, gr.Tabs(selected="tab_renovacion")
+
+
+def cam_to_reconstruction(image, flip_h, rotate):
+    img = _apply_camera_transforms(image, flip_h, rotate)
+    if img is None:
+        raise gr.Error("Capturá una foto primero usando el botón de la cámara (📷).")
+    return _prep(img), None, gr.Tabs(selected="tab_reconstruccion")
+
+
+# --- Perspectiva ---
 
 def reset_perspective(image):
     base = _prep(image)
@@ -104,7 +162,7 @@ def clear_custom_furniture():
     return None, "Volviste a la lista de muebles predefinidos."
 
 
-# --- Renovacion: click en 2 esquinas para marcar el objeto a borrar --------
+# --- Renovacion ---
 
 def reset_renovation(image):
     base = _prep(image)
@@ -153,7 +211,7 @@ def run_renovation_with_controls(base, points, radius, method_name, dilate_iter,
     )
 
 
-# --- Reconstruccion ----------------------------------------------------------
+# --- Reconstruccion ---
 
 def run_reconstruction(image, near_pct, plan_mode, footprint):
     return reconstruction.process_reconstruction(image, int(near_pct), plan_mode, synthetic_point=footprint)
@@ -163,7 +221,7 @@ def clear_reconstruction_footprint():
     return None
 
 
-# --- Subida de foto explicita (boton, no depende de "limpiar" el Image) -----
+# --- Upload handlers ---
 
 def on_upload_perspective(filepath):
     if not filepath:
@@ -204,6 +262,70 @@ def build_demo() -> gr.Blocks:
         )
 
         with gr.Tabs() as tabs:
+
+            # ----------------------------------------------------------------
+            # CÁMARA EN VIVO
+            # ----------------------------------------------------------------
+            with gr.Tab("📷 Cámara", id="tab_camara"):
+                gr.Markdown(
+                    "Apuntá la cámara al ambiente y presioná el ícono 📷 para capturar. "
+                    "Ajustá la imagen si hace falta y enviala al proceso que quieras.\n\n"
+                    "> **Permisos:** si el navegador pide acceso a la cámara, hacé click en **Permitir**."
+                )
+                with gr.Row():
+                    with gr.Column(scale=3):
+                        cam_capture = gr.Image(
+                            sources=["webcam"],
+                            type="numpy",
+                            label="Cámara en vivo — presioná 📷 para capturar",
+                            height=460,
+                        )
+                    with gr.Column(scale=1):
+                        gr.Markdown("#### Ajustes de la foto capturada")
+                        cam_flip = gr.Checkbox(label="Voltear horizontalmente", value=False)
+                        cam_rotate = gr.Radio(
+                            choices=["0°", "90° ↻", "180°", "270° ↺"],
+                            value="0°",
+                            label="Rotar",
+                        )
+
+                cam_status_text = gr.Markdown(
+                    "Capturá una foto con el botón 📷 de arriba y luego enviala a un proceso."
+                )
+                cam_preview = gr.Image(
+                    type="numpy",
+                    label="Vista previa (imagen que se va a enviar al proceso)",
+                    interactive=False,
+                    buttons=["download", "fullscreen"],
+                )
+                with gr.Row():
+                    cam_to_perspective_btn = gr.Button("🛋️ Enviar a Perspectiva", variant="primary")
+                    cam_to_renovation_btn = gr.Button("🧹 Enviar a Renovación", variant="primary")
+                    cam_to_reconstruction_btn = gr.Button("📐 Enviar a Reconstrucción", variant="primary")
+
+                # Update preview when photo is captured or transforms change
+                cam_capture.change(
+                    cam_preview_update,
+                    inputs=[cam_capture, cam_flip, cam_rotate],
+                    outputs=[cam_preview, cam_status_text],
+                    api_name="cam_preview_on_capture",
+                )
+                cam_flip.change(
+                    cam_preview_update,
+                    inputs=[cam_capture, cam_flip, cam_rotate],
+                    outputs=[cam_preview, cam_status_text],
+                    api_name="cam_preview_on_flip",
+                )
+                cam_rotate.change(
+                    cam_preview_update,
+                    inputs=[cam_capture, cam_flip, cam_rotate],
+                    outputs=[cam_preview, cam_status_text],
+                    api_name="cam_preview_on_rotate",
+                )
+
+            # ----------------------------------------------------------------
+            # PERSPECTIVA
+            # ----------------------------------------------------------------
             with gr.Tab("Perspectiva", id="tab_perspectiva"):
                 gr.Markdown("Subí una foto y hacé **click** sobre 4 puntos del piso (las 4 esquinas donde apoyaría el mueble).")
                 perspective_base = gr.State(default_perspective)
@@ -215,9 +337,10 @@ def build_demo() -> gr.Blocks:
                 )
                 perspective_canvas = gr.Image(
                     value=default_perspective,
-                    sources=["upload"],
+                    sources=["upload", "webcam"],
                     type="numpy",
-                    label="Imagen del ambiente (o usá el botón de arriba para subir la tuya)",
+                    label="Imagen del ambiente (o usá el botón de arriba / la tab de Cámara)",
+
                 )
                 with gr.Row():
                     clear_floor_btn = gr.Button("Limpiar puntos")
@@ -333,6 +456,9 @@ def build_demo() -> gr.Blocks:
                     api_name="perspective_clear_furniture",
                 )
 
+            # ----------------------------------------------------------------
+            # RENOVACION
+            # ----------------------------------------------------------------
             with gr.Tab("Renovacion", id="tab_renovacion"):
                 gr.Markdown(
                     "Subí una foto y hacé **click en 2 esquinas** (superior izquierda e inferior derecha) "
@@ -345,9 +471,10 @@ def build_demo() -> gr.Blocks:
                 )
                 renovation_canvas = gr.Image(
                     value=default_renovation,
-                    sources=["upload"],
+                    sources=["upload", "webcam"],
                     type="numpy",
-                    label="Imagen a limpiar (o usá el botón de arriba para subir la tuya)",
+                    label="Imagen a limpiar (o usá el botón de arriba / la tab de Cámara)",
+
                 )
                 with gr.Row():
                     clear_mask_btn = gr.Button("Limpiar seleccion")
@@ -423,6 +550,9 @@ def build_demo() -> gr.Blocks:
                     api_name="renovation_upload_button",
                 )
 
+            # ----------------------------------------------------------------
+            # RECONSTRUCCION
+            # ----------------------------------------------------------------
             with gr.Tab("Reconstruccion", id="tab_reconstruccion"):
                 reconstruction_footprint = gr.State(None)
                 gr.Markdown(
@@ -437,9 +567,10 @@ def build_demo() -> gr.Blocks:
                         )
                         reconstruction_input = gr.Image(
                             value=default_reconstruction,
-                            sources=["upload"],
+                            sources=["upload", "webcam"],
                             type="numpy",
-                            label="Imagen de escena (o usá el botón de arriba para subir la tuya)",
+                            label="Imagen de escena (o usá el botón de arriba / la tab de Cámara)",
+        
                         )
                     with gr.Column(scale=3):
                         near_pct = gr.Slider(60, 99, value=80, step=1, label="Umbral de cercania (%)")
@@ -450,13 +581,23 @@ def build_demo() -> gr.Blocks:
                         )
                         run_reconstruction_btn = gr.Button("Reconstruir escena", variant="primary")
                         reconstruction_status = gr.Markdown("Procesá una imagen para ver profundidad, objetos y planta.")
-                reconstruction_summary = gr.Image(type="numpy", label="Resumen 2x2")
+                reconstruction_summary = gr.Image(
+                    type="numpy", label="Resumen 2x2", buttons=["download", "fullscreen"]
+                )
                 with gr.Row():
-                    reconstruction_original = gr.Image(type="numpy", label="Original")
-                    reconstruction_depth = gr.Image(type="numpy", label="Profundidad")
+                    reconstruction_original = gr.Image(
+                        type="numpy", label="Original", buttons=["download", "fullscreen"]
+                    )
+                    reconstruction_depth = gr.Image(
+                        type="numpy", label="Profundidad", buttons=["download", "fullscreen"]
+                    )
                 with gr.Row():
-                    reconstruction_objects = gr.Image(type="numpy", label="Objetos detectados")
-                    reconstruction_plan = gr.Image(type="numpy", label="Planta")
+                    reconstruction_objects = gr.Image(
+                        type="numpy", label="Objetos detectados", buttons=["download", "fullscreen"]
+                    )
+                    reconstruction_plan = gr.Image(
+                        type="numpy", label="Planta", buttons=["download", "fullscreen"]
+                    )
 
                 run_reconstruction_btn.click(
                     run_reconstruction,
@@ -488,6 +629,9 @@ def build_demo() -> gr.Blocks:
                     api_name="reconstruction_clear_footprint_on_drop",
                 )
 
+            # ----------------------------------------------------------------
+            # Cross-tab event wiring
+            # ----------------------------------------------------------------
             send_perspective_to_reconstruction_btn.click(
                 send_to_reconstruction,
                 inputs=[perspective_result, perspective_footprint],
@@ -505,6 +649,26 @@ def build_demo() -> gr.Blocks:
                 inputs=[renovation_result],
                 outputs=[perspective_canvas, perspective_base, perspective_points, perspective_status, tabs],
                 api_name="renovation_send_to_perspective",
+            )
+
+            # Camera → tabs (wired here because the target components are defined above)
+            cam_to_perspective_btn.click(
+                cam_to_perspective,
+                inputs=[cam_capture, cam_flip, cam_rotate],
+                outputs=[perspective_canvas, perspective_base, perspective_points, perspective_status, tabs],
+                api_name="cam_to_perspective",
+            )
+            cam_to_renovation_btn.click(
+                cam_to_renovation,
+                inputs=[cam_capture, cam_flip, cam_rotate],
+                outputs=[renovation_canvas, renovation_base, renovation_points, renovation_status, tabs],
+                api_name="cam_to_renovation",
+            )
+            cam_to_reconstruction_btn.click(
+                cam_to_reconstruction,
+                inputs=[cam_capture, cam_flip, cam_rotate],
+                outputs=[reconstruction_input, reconstruction_footprint, tabs],
+                api_name="cam_to_reconstruction",
             )
 
     return demo
