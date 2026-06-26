@@ -167,8 +167,8 @@ def clear_custom_furniture():
 def reset_renovation(image):
     base = _prep(image)
     if base is None:
-        return None, [], "Subí o capturá una foto, después marcá el centro y una esquina del objeto a borrar."
-    return base, [], "1er click: centro del objeto a borrar."
+        return None, [], "Subí o capturá una foto, después click en las 2 esquinas del objeto a borrar."
+    return base, [], "0/2 puntos. Click en la esquina superior izquierda del objeto."
 
 
 def add_renovation_point(evt: gr.SelectData, base, points):
@@ -181,16 +181,16 @@ def add_renovation_point(evt: gr.SelectData, base, points):
     points.append([int(x), int(y)])
     preview, _bbox = renovation.annotate_selection(base, points)
     if len(points) < 2:
-        status = "1/2 — centro marcado. Ahora click en cualquier esquina del área de selección."
+        status = "1/2 puntos. Click en la esquina inferior derecha del objeto."
     else:
-        status = "ROI lista (objeto centrado). Click en 'Eliminar objeto' (o seguí clickeando para reiniciar)."
+        status = "ROI lista. Click en 'Eliminar objeto' (o seguí clickeando para reiniciar la selección)."
     return preview, points, status
 
 
 def clear_renovation_selection(base):
     if base is None:
-        return None, [], "Subí o capturá una foto, después marcá el centro y una esquina del objeto a borrar."
-    return base, [], "1er click: centro del objeto a borrar."
+        return None, [], "Subí o capturá una foto, después click en las 2 esquinas del objeto a borrar."
+    return base, [], "0/2 puntos. Click en la esquina superior izquierda del objeto."
 
 
 def update_renovation_backend(method_name):
@@ -461,10 +461,8 @@ def build_demo() -> gr.Blocks:
             # ----------------------------------------------------------------
             with gr.Tab("Renovacion", id="tab_renovacion"):
                 gr.Markdown(
-                    "Subí una foto, hacé **click en el CENTRO** del objeto que querés borrar "
-                    "y después **click en cualquier ESQUINA** del área de selección. "
-                    "El recuadro se construye simétricamente alrededor del centro marcado, "
-                    "así el objeto siempre queda en el medio y la segmentación tiene contexto de fondo parejo en todos los lados."
+                    "Subí una foto y hacé **click en 2 esquinas** (superior izquierda e inferior derecha) "
+                    "del objeto que querés borrar. La segmentación del objeto dentro de esa zona es automática."
                 )
                 renovation_base = gr.State(default_renovation)
                 renovation_points = gr.State([])
@@ -482,7 +480,7 @@ def build_demo() -> gr.Blocks:
                     clear_mask_btn = gr.Button("Limpiar seleccion")
                     run_renovation_btn = gr.Button("Eliminar objeto", variant="primary")
                 renovation_status = gr.Markdown(
-                    "1er click: centro del objeto a borrar."
+                    "0/2 puntos. Click en la esquina superior izquierda del objeto."
                 )
                 with gr.Row():
                     with gr.Column(scale=1):

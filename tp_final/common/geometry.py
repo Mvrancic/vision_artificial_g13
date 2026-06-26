@@ -46,7 +46,8 @@ def warp_sprite_to_quad(sprite_rgba, dst_quad, out_size):
 def standing_quad_from_floor(floor_quad, height_ratio):
     """A partir del cuadrilatero del piso (TL, TR, BR, BL) levanta un plano vertical.
 
-    El mueble se apoya en la arista trasera del piso (TL-TR) y "se para" hacia arriba.
+    El mueble se apoya en la linea central del cuadrilatero (promedio entre la arista
+    cercana y la lejana) para que quede centrado dentro del area seleccionada.
     height_ratio escala la altura respecto a la profundidad del cuadrilatero.
     Devuelve el cuadrilatero destino para el sprite (TL, TR, BR, BL del plano vertical).
     """
@@ -55,8 +56,9 @@ def standing_quad_from_floor(floor_quad, height_ratio):
     # profundidad media del piso (cuanto se aleja) para escalar la altura
     depth = (np.linalg.norm(bl - tl) + np.linalg.norm(br - tr)) / 2.0
     up = -np.array([0.0, depth * height_ratio])  # hacia arriba en pantalla (y negativo)
-    # base del mueble = arista trasera del piso (la mas lejana, TL-TR)
-    base_left, base_right = tl, tr
+    # base del mueble = linea central (promedio entre arista cercana y lejana)
+    base_left = (tl + bl) / 2.0
+    base_right = (tr + br) / 2.0
     top_left = base_left + up
     top_right = base_right + up
     # orden TL, TR, BR, BL para el sprite parado

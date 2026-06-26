@@ -19,7 +19,7 @@ def annotate_selection(image: np.ndarray, points: list[list[int]]) -> tuple[np.n
     rgb = utils.ensure_rgb(image)
     if rgb is None:
         raise ValueError("No hay imagen cargada.")
-    bbox = utils.build_bbox_from_center_and_corner(points)
+    bbox = utils.build_bbox_from_points(points)
     preview = utils.draw_points(rgb, points)
     preview = utils.draw_bbox(preview, bbox)
     return preview, bbox
@@ -38,9 +38,9 @@ def run_renovation_from_points(
     if rgb is None:
         raise ValueError("No hay imagen cargada.")
 
-    rect = utils.build_bbox_from_center_and_corner(points)
+    rect = utils.build_bbox_from_points(points)
     if rect is None:
-        raise ValueError("Marcá 2 puntos: primero el CENTRO del objeto, luego una ESQUINA del área de selección.")
+        raise ValueError("Marcá 2 puntos (esquina superior izq. y esquina inferior der.) sobre el objeto a borrar.")
 
     bgr = utils.rgb_to_bgr(rgb)
     object_mask, segment_name = segment_object(bgr, rect, mode="auto")
