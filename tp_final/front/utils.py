@@ -76,6 +76,8 @@ def draw_bbox(image: np.ndarray, bbox: tuple[int, int, int, int] | None) -> np.n
         return canvas
     x, y, w, h = bbox
     cv2.rectangle(canvas, (x, y), (x + w, y + h), (255, 64, 64), 3)
+    cx, cy = x + w // 2, y + h // 2
+    cv2.drawMarker(canvas, (cx, cy), (255, 64, 64), cv2.MARKER_CROSS, 22, 2)
     cv2.putText(
         canvas,
         f"ROI {w}x{h}",
@@ -86,6 +88,21 @@ def draw_bbox(image: np.ndarray, bbox: tuple[int, int, int, int] | None) -> np.n
         2,
     )
     return canvas
+
+
+def build_bbox_from_center_and_corner(
+    points: list[list[int]] | list[tuple[int, int]],
+) -> tuple[int, int, int, int] | None:
+    """Bbox simétrico: points[0] = centro del objeto, points[1] = cualquier esquina."""
+    if len(points) < 2:
+        return None
+    cx, cy = int(points[0][0]), int(points[0][1])
+    px, py = int(points[1][0]), int(points[1][1])
+    half_w = abs(px - cx)
+    half_h = abs(py - cy)
+    if half_w <= 0 or half_h <= 0:
+        return None
+    return cx - half_w, cy - half_h, 2 * half_w, 2 * half_h
 
 
 def build_bbox_from_points(points: list[list[int]] | list[tuple[int, int]]) -> tuple[int, int, int, int] | None:
