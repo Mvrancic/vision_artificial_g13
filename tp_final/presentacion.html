@@ -48,7 +48,7 @@
     }
 
     .slide::after {
-      content: attr(data-slide) "/13";
+      content: attr(data-slide) "/7";
       position: absolute;
       right: 44px;
       bottom: 34px;
@@ -353,55 +353,6 @@
       line-height: 1.34;
     }
 
-    .split-note {
-      display: grid;
-      grid-template-columns: 1.05fr .95fr;
-      gap: 56px;
-      align-items: center;
-    }
-
-    .hero-mark {
-      width: min(360px, 70vw);
-      aspect-ratio: 1.25;
-      border: 2px solid var(--fg);
-      align-self: center;
-      justify-self: end;
-      position: relative;
-    }
-
-    .hero-mark::before {
-      content: "";
-      position: absolute;
-      left: 14%;
-      right: 14%;
-      bottom: 18%;
-      height: 24%;
-      border: 2px solid var(--fg);
-      transform: skewX(-16deg);
-    }
-
-    .hero-mark::after {
-      content: "";
-      position: absolute;
-      left: 34%;
-      bottom: 40%;
-      width: 34%;
-      height: 30%;
-      border-left: 2px solid var(--accent);
-      border-right: 2px solid var(--accent);
-      border-top: 2px solid var(--accent);
-      transform: perspective(220px) rotateX(48deg);
-    }
-
-    .repo {
-      border-top: 2px solid var(--fg);
-      padding-top: 22px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: clamp(24px, 3vw, 42px);
-      line-height: 1.18;
-      overflow-wrap: anywhere;
-    }
-
     .controls {
       position: fixed;
       left: 24px;
@@ -424,7 +375,6 @@
 
       .grid-2,
       .grid-3,
-      .split-note,
       .spec,
       .flow {
         grid-template-columns: 1fr;
@@ -442,10 +392,6 @@
       .timeline {
         grid-template-columns: 86px 1fr;
         gap: 0 16px;
-      }
-
-      .hero-mark {
-        justify-self: start;
       }
     }
 
@@ -474,7 +420,7 @@
 <body>
   <main>
     <section class="slide" id="slide-1" data-slide="01">
-      <div class="frame split-note">
+      <div class="frame">
         <div>
           <p class="eyebrow">Trabajo Final · Visión Artificial · Grupo 13</p>
           <h1>Visión Artificial aplicada al Diseño de Interiores</h1>
@@ -485,7 +431,6 @@
             <span>Pablo Pagliaricci</span>
           </div>
         </div>
-        <div class="hero-mark" aria-label="Diagrama abstracto de mueble proyectado sobre piso"></div>
       </div>
     </section>
 
@@ -497,179 +442,69 @@
         <div class="grid-3">
           <div class="metric"><b>3</b><span><strong>enfoques</strong> independientes para borrar, agregar y entender la escena.</span></div>
           <div class="metric"><b>1</b><span><strong>foto</strong> de entrada. No hay escaneo 3D ni sensor de profundidad real.</span></div>
-          <div class="metric"><b>0</b><span><strong>torch/tensorflow</strong> en el núcleo: OpenCV clásico como base.</span></div>
+          <div class="metric"><b>1</b><span><strong>sistema</strong> con una sola interfaz para intervenir un ambiente desde distintas necesidades.</span></div>
         </div>
       </div>
     </section>
 
     <section class="slide" id="slide-3" data-slide="03">
       <div class="frame">
-        <p class="eyebrow">Cómo lo armamos</p>
-        <h2>Desarrollo incremental en cinco commits de producto.</h2>
-        <div class="timeline">
-          <time>14 jun</time><p><strong>Base común</strong> + módulo de perspectiva + reconstrucción v1 con profundidad heurística.</p>
-          <time>14 jun</time><p><strong>Reconstrucción</strong>: de imagen cargada a profundidad relativa y planta aproximada.</p>
-          <time>14 jun</time><p><strong>Vista de planta</strong>: grilla de ocupación top-down más legible.</p>
-          <time>19 jun</time><p><strong>Renovación</strong>: grabCut + inpainting + frontend en Gradio.</p>
-          <time>24 jun</time><p><strong>Pulido final</strong>: demo, assets, fallbacks y presentación integrada.</p>
+        <p class="eyebrow">La solución</p>
+        <h2>Un sistema con tres módulos para intervenir un ambiente desde una sola foto.</h2>
+        <div class="modules">
+          <div class="common-row"><span class="tag">Entrada</span><span><strong>Una sola imagen</strong> del ambiente como punto de partida para los tres procesos.</span></div>
+          <div class="module-row"><span class="tag">01</span><span><strong>Renovación</strong>: eliminar un objeto o mueble y reconstruir el fondo.</span><span class="verb">borrar</span></div>
+          <div class="module-row"><span class="tag">02</span><span><strong>Perspectiva</strong>: insertar un mueble nuevo respetando el plano del piso.</span><span class="verb">agregar</span></div>
+          <div class="module-row"><span class="tag">03</span><span><strong>Reconstrucción</strong>: estimar profundidad y generar una referencia top-down del espacio.</span><span class="verb">entender</span></div>
         </div>
       </div>
     </section>
 
     <section class="slide" id="slide-4" data-slide="04">
       <div class="frame">
-        <p class="eyebrow">Los 3 enfoques</p>
-        <h2>Un núcleo común, tres módulos paralelos.</h2>
-        <div class="modules">
-          <div class="common-row"><span class="tag">Entrada</span><span><strong>Imagen cargada</strong> → fuentes, geometría, trackbars y assets compartidos en <strong>common/</strong>.</span></div>
-          <div class="module-row"><span class="tag">01</span><span><strong>Renovación</strong>: eliminar un mueble y reconstruir fondo.</span><span class="verb">borrar</span></div>
-          <div class="module-row"><span class="tag">02</span><span><strong>Perspectiva</strong>: insertar un mueble en el plano del piso.</span><span class="verb">agregar</span></div>
-          <div class="module-row"><span class="tag">03</span><span><strong>Reconstrucción</strong>: estimar profundidad y vista top-down.</span><span class="verb">entender</span></div>
+        <p class="eyebrow">Enfoque 1 · Renovación</p>
+        <h2>Sacar un mueble y reconstruir lo que había detrás.</h2>
+        <div class="spec">
+          <article><h3>Qué resuelve</h3><p>Permite probar cómo se vería el ambiente sin un mueble u objeto que hoy ocupa ese espacio.</p></article>
+          <article><h3>Input</h3><p>La imagen del ambiente y una selección manual del objeto a borrar.</p></article>
+          <article><h3>Proceso</h3><p>Segmenta el objeto, genera una máscara y rellena la región faltante para reconstruir pared o piso.</p></article>
+          <article><h3>Resultado</h3><p>Una versión limpia de la escena para evaluar redistribución o redecoración.</p></article>
         </div>
       </div>
     </section>
 
     <section class="slide" id="slide-5" data-slide="05">
       <div class="frame">
-        <p class="eyebrow">Enfoque 1 · Renovación</p>
-        <h2>Sacar un mueble y reconstruir lo que había detrás.</h2>
+        <p class="eyebrow">Enfoque 2 · Perspectiva</p>
+        <h2>Visualizar un mueble nuevo en su lugar real.</h2>
         <div class="spec">
-          <article><h3>Objetivo</h3><p>Eliminar un objeto sin dejar huecos ni parches evidentes.</p></article>
-          <article><h3>Input</h3><p><strong>ROI</strong> seleccionada por el usuario sobre el mueble a borrar.</p></article>
-          <article><h3>Algoritmo</h3><p><strong>grabCut</strong>, refinado morfológico, componente conectada y <strong>inpainting</strong> TELEA/Navier-Stokes o LaMa.</p></article>
-          <article><h3>Output</h3><p>Imagen limpia + comparación de <strong>máscara</strong> y resultado final.</p></article>
+          <article><h3>Qué resuelve</h3><p>Permite anticipar cómo quedaría un mueble nuevo dentro del ambiente antes de mover o comprar nada.</p></article>
+          <article><h3>Input</h3><p>La foto del ambiente y cuatro puntos marcados sobre la zona del piso donde se quiere apoyar el mueble.</p></article>
+          <article><h3>Proceso</h3><p>El sistema proyecta el mueble sobre ese plano para respetar la perspectiva de la escena.</p></article>
+          <article><h3>Resultado</h3><p>Una visualización integrada del mueble dentro de la habitación, con escala y orientación coherentes.</p></article>
         </div>
       </div>
     </section>
 
     <section class="slide" id="slide-6" data-slide="06">
-      <div class="frame formula">
-        <p class="eyebrow">Enfoque 1 · Deep Dive</p>
-        <h2>Scoring automático para elegir la mejor máscara.</h2>
-        <code class="equation">score = 0.45·IoU + 0.45·cobertura <span class="muted">−</span> 0.10·toca_borde <span class="muted">−</span> penalizaciones</code>
-        <div class="grid-3">
-          <div class="metric"><b>IoU</b><span>Solape entre la máscara candidata y la caja marcada por el usuario.</span></div>
-          <div class="metric"><b>COV</b><span>Cobertura interna de la caja: evita máscaras demasiado chicas.</span></div>
-          <div class="metric"><b>OR</b><span>Dos máscaras se combinan si la unión mejora el score final.</span></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-7" data-slide="07">
-      <div class="frame">
-        <p class="eyebrow">Enfoque 2 · Perspectiva</p>
-        <h2>Visualizar un mueble nuevo en su lugar real.</h2>
-        <div class="spec">
-          <article><h3>Objetivo</h3><p>Insertar un mueble respetando la <strong>perspectiva</strong> de la habitación.</p></article>
-          <article><h3>Input</h3><p><strong>Foto</strong> + 4 puntos marcados por el usuario sobre el piso.</p></article>
-          <article><h3>Algoritmo</h3><p><strong>Homografía</strong> plano→perspectiva con <strong>getPerspectiveTransform</strong> y <strong>warpPerspective</strong>; sprite con alfa y sombra por centroide de brillo.</p></article>
-          <article><h3>Output</h3><p>Composición con mueble apoyado en el piso, sombra proyectada y controles de <strong>altura</strong> / <strong>opacidad</strong>.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-8" data-slide="08">
       <div class="frame">
         <p class="eyebrow">Enfoque 3 · Reconstrucción</p>
         <h2>Entender el espacio: profundidad y vista de planta.</h2>
         <div class="spec">
-          <article><h3>Objetivo</h3><p>Estimar distribución espacial de muebles y zonas ocupadas.</p></article>
-          <article><h3>Input</h3><p><strong>Imagen cargada</strong> desde la interfaz, procesada a escala reducida.</p></article>
-          <article><h3>Algoritmo</h3><p><strong>MiDaS small</strong> vía cv2.dnn/ONNX, blobs de cercanía, contornos y fallback con gradiente vertical.</p></article>
-          <article><h3>Output</h3><p>Grilla 2×2: original, profundidad, objetos detectados y <strong>planta top-down</strong>.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-9" data-slide="09">
-      <div class="frame">
-        <p class="eyebrow">Enfoque 3 · Deep Dive</p>
-        <h2>De una imagen a una planta aproximada.</h2>
-        <div class="flow">
-          <article>
-            <b>01</b>
-            <h3>Imagen</h3>
-            <p>La página recibe una <strong>imagen cargada</strong> y trabaja sobre ese archivo estático.</p>
-          </article>
-          <article>
-            <b>02</b>
-            <h3>Profundidad</h3>
-            <p><strong>MiDaS</strong> estima profundidad relativa: qué zonas parecen más cerca o más lejos.</p>
-          </article>
-          <article>
-            <b>03</b>
-            <h3>Planta</h3>
-            <p>Los píxeles se agrupan en una <strong>grilla de ocupación</strong> para visualizar la distribución desde arriba.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-10" data-slide="10">
-      <div class="frame">
-        <p class="eyebrow">Stack tecnológico</p>
-        <h2>Núcleo clásico, modelos livianos como plus opcional.</h2>
-        <table>
-          <thead><tr><th>Librería</th><th>Uso en el TP</th></tr></thead>
-          <tbody>
-            <tr><td>OpenCV</td><td><strong>grabCut</strong>, inpainting, homografía, contornos y cv2.dnn.</td></tr>
-            <tr><td>NumPy</td><td>Álgebra de matrices, compositing alfa y back-proyección vectorizada.</td></tr>
-            <tr><td>Gradio</td><td>Frontend web para ejecutar los tres enfoques desde navegador.</td></tr>
-            <tr><td>PyTorch / ONNX</td><td>Soporte de LaMa y carga de MiDaS small en ONNX.</td></tr>
-            <tr><td>LaMa / rembg</td><td>Backends alternativos para inpainting y segmentación automática.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-11" data-slide="11">
-      <div class="frame">
-        <p class="eyebrow">Relación con la materia</p>
-        <h2>No inventamos técnicas nuevas: las combinamos.</h2>
-        <table>
-          <thead><tr><th>Técnica del TP</th><th>Tema de la cursada</th></tr></thead>
-          <tbody>
-            <tr><td>grabCut + inpainting</td><td><strong>Segmentación</strong>, máscaras y reconstrucción local.</td></tr>
-            <tr><td>Homografía</td><td><strong>Transformaciones geométricas</strong> y práctica de homografía.</td></tr>
-            <tr><td>Contornos / blobs</td><td><strong>Contornos</strong> y componentes conectados.</td></tr>
-            <tr><td>Modelo pinhole</td><td><strong>Calibración de cámara</strong> y geometría proyectiva.</td></tr>
-            <tr><td>cv2.dnn + ONNX</td><td><strong>Redes preentrenadas</strong> integradas desde OpenCV.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-12" data-slide="12">
-      <div class="frame">
-        <p class="eyebrow">Limitaciones</p>
-        <h2>Dependencias fuertes y aproximaciones geométricas.</h2>
-        <div class="grid-2">
-          <div>
-            <h3>Dependencias fuertes</h3>
-            <ul class="bullets">
-              <li><strong>MiDaS</strong> depende del modelo ONNX; sin descarga, cae a una heurística más pobre.</li>
-              <li><strong>grabCut</strong> necesita una ROI razonablemente ajustada.</li>
-              <li><strong>LaMa/rembg</strong> mejoran calidad, pero aumentan peso de entorno.</li>
-            </ul>
-          </div>
-          <div>
-            <h3>Aproximaciones geométricas</h3>
-            <ul class="bullets">
-              <li><strong>Homografía</strong> asume piso plano.</li>
-              <li><strong>Profundidad monocular</strong> es relativa, no métrica.</li>
-              <li><strong>Un frame</strong> por vez: no se acumula información temporal.</li>
-            </ul>
-          </div>
+          <article><h3>Qué resuelve</h3><p>Da una referencia espacial del ambiente sin escaneo 3D ni sensores dedicados.</p></article>
+          <article><h3>Input</h3><p>La foto del ambiente tomada desde una sola cámara convencional.</p></article>
+          <article><h3>Proceso</h3><p>Estima profundidad relativa, detecta zonas cercanas y proyecta la escena a una vista desde arriba.</p></article>
+          <article><h3>Resultado</h3><p>Una planta aproximada útil para entender distribución, ocupación y relación entre objetos.</p></article>
         </div>
       </div>
     </section>
 
 
-    <section class="slide" id="slide-13" data-slide="13">
+    <section class="slide" id="slide-7" data-slide="07">
       <div class="frame">
         <p class="eyebrow">Cierre</p>
-        <h2>Repositorio y preguntas.</h2>
-        <p class="repo">github.com/Mvrancic/vision_artificial_g13/tree/main/tp_final</p>
+        <h2>Un mismo sistema para borrar, agregar y entender un ambiente desde una sola foto.</h2>
+        <p class="lead">La propuesta resuelve tres necesidades concretas del interiorismo: <strong>visualizar cambios</strong>, <strong>probar alternativas</strong> y <strong>obtener una referencia espacial</strong> sin recurrir a modelado 3D completo.</p>
         <div class="grid-3">
           <div class="metric"><b>01</b><span><strong>Renovación</strong>: borrar objetos.</span></div>
           <div class="metric"><b>02</b><span><strong>Perspectiva</strong>: agregar muebles.</span></div>
