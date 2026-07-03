@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Visión Artificial aplicada al Diseño de Interiores · Grupo 13</title>
+  <style>
+    :root {
+      --bg: #f7f6f2;
+      --fg: #111111;
+      --muted: #6f6f67;
+      --line: #d9d6cc;
+      --soft: #ebe8df;
+      --accent: #0f766e;
+      --accent-2: #b45309;
+      --max: 1160px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    strong {
+      font-weight: 750;
+    }
+
+    .slide {
+      min-height: 100vh;
+      scroll-snap-align: start;
+      display: grid;
+      place-items: center;
+      padding: 56px;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+    }
+
+    .slide::after {
+      content: attr(data-slide) "/13";
+      position: absolute;
+      right: 44px;
+      bottom: 34px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 650;
+      letter-spacing: .04em;
+    }
+
+    .frame {
+      width: min(100%, var(--max));
+      min-height: 640px;
+      display: grid;
+      align-content: center;
+      gap: 34px;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      text-transform: uppercase;
+      font-size: 13px;
+      font-weight: 750;
+      letter-spacing: .12em;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      max-width: 980px;
+      font-size: clamp(58px, 8vw, 112px);
+      line-height: .92;
+      font-weight: 820;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      max-width: 920px;
+      font-size: clamp(44px, 5.6vw, 80px);
+      line-height: .95;
+      font-weight: 820;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: 22px;
+      line-height: 1.1;
+      font-weight: 760;
+    }
+
+    .lead {
+      max-width: 880px;
+      color: #252521;
+      font-size: clamp(22px, 2.3vw, 34px);
+      line-height: 1.18;
+      font-weight: 520;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.45;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px 24px;
+      color: var(--muted);
+      font-size: 18px;
+      font-weight: 620;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 42px;
+      align-items: start;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .metric {
+      border-top: 2px solid var(--fg);
+      padding-top: 16px;
+    }
+
+    .metric b {
+      display: block;
+      font-size: clamp(54px, 7vw, 104px);
+      line-height: .85;
+      font-weight: 840;
+      letter-spacing: 0;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.32;
+    }
+
+    .bullets {
+      display: grid;
+      gap: 14px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 21px;
+      line-height: 1.34;
+    }
+
+    .bullets li {
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 0 28px;
+      max-width: 980px;
+    }
+
+    .timeline time,
+    .timeline p {
+      padding: 18px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .timeline time {
+      color: var(--accent);
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .timeline p {
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    .modules {
+      display: grid;
+      gap: 16px;
+      max-width: 980px;
+    }
+
+    .module-row,
+    .common-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 150px;
+      gap: 20px;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      padding: 18px 0;
+      font-size: 22px;
+    }
+
+    .common-row {
+      color: var(--muted);
+      grid-template-columns: 120px 1fr;
+    }
+
+    .tag {
+      color: var(--accent);
+      font-size: 15px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+    }
+
+    .verb {
+      color: var(--muted);
+      text-align: right;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .spec {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .spec article {
+      border-top: 2px solid var(--fg);
+      padding-top: 14px;
+      min-height: 220px;
+    }
+
+    .spec h3 {
+      margin-bottom: 28px;
+      color: var(--accent);
+      font-size: 15px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+    }
+
+    .spec p {
+      font-size: 20px;
+      line-height: 1.28;
+    }
+
+    .spec.compact article {
+      min-height: 150px;
+    }
+
+    .spec.compact h3 {
+      margin-bottom: 16px;
+    }
+
+    .spec.compact p {
+      font-size: 18px;
+    }
+
+    .formula {
+      display: grid;
+      gap: 18px;
+    }
+
+    .equation {
+      display: block;
+      width: 100%;
+      border-top: 2px solid var(--fg);
+      border-bottom: 2px solid var(--fg);
+      padding: 34px 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: clamp(28px, 4.2vw, 56px);
+      line-height: 1.08;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .equation .muted {
+      color: var(--muted);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 20px;
+      line-height: 1.28;
+    }
+
+    th,
+    td {
+      padding: 18px 12px 18px 0;
+      border-top: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .11em;
+    }
+
+    td:first-child {
+      width: 32%;
+      font-weight: 760;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .flow article {
+      border-top: 2px solid var(--fg);
+      padding-top: 16px;
+      min-height: 260px;
+    }
+
+    .flow b {
+      display: block;
+      font-size: clamp(48px, 6vw, 86px);
+      line-height: .9;
+      margin-bottom: 22px;
+    }
+
+    .flow h3 {
+      margin-bottom: 14px;
+    }
+
+    .flow p {
+      color: var(--muted);
+      font-size: 19px;
+      line-height: 1.34;
+    }
+
+    .split-note {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 56px;
+      align-items: center;
+    }
+
+    .hero-mark {
+      width: min(360px, 70vw);
+      aspect-ratio: 1.25;
+      border: 2px solid var(--fg);
+      align-self: center;
+      justify-self: end;
+      position: relative;
+    }
+
+    .hero-mark::before {
+      content: "";
+      position: absolute;
+      left: 14%;
+      right: 14%;
+      bottom: 18%;
+      height: 24%;
+      border: 2px solid var(--fg);
+      transform: skewX(-16deg);
+    }
+
+    .hero-mark::after {
+      content: "";
+      position: absolute;
+      left: 34%;
+      bottom: 40%;
+      width: 34%;
+      height: 30%;
+      border-left: 2px solid var(--accent);
+      border-right: 2px solid var(--accent);
+      border-top: 2px solid var(--accent);
+      transform: perspective(220px) rotateX(48deg);
+    }
+
+    .repo {
+      border-top: 2px solid var(--fg);
+      padding-top: 22px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: clamp(24px, 3vw, 42px);
+      line-height: 1.18;
+      overflow-wrap: anywhere;
+    }
+
+    .controls {
+      position: fixed;
+      left: 24px;
+      bottom: 22px;
+      z-index: 10;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: .02em;
+    }
+
+    @media (max-width: 820px) {
+      .slide {
+        padding: 32px 22px 54px;
+      }
+
+      .frame {
+        min-height: auto;
+      }
+
+      .grid-2,
+      .grid-3,
+      .split-note,
+      .spec,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .module-row {
+        grid-template-columns: 72px 1fr;
+      }
+
+      .verb {
+        grid-column: 2;
+        text-align: left;
+      }
+
+      .timeline {
+        grid-template-columns: 86px 1fr;
+        gap: 0 16px;
+      }
+
+      .hero-mark {
+        justify-self: start;
+      }
+    }
+
+    @media print {
+      html {
+        scroll-snap-type: none;
+      }
+
+      body {
+        background: white;
+      }
+
+      .slide {
+        width: 100vw;
+        height: 100vh;
+        min-height: 0;
+        page-break-after: always;
+      }
+
+      .controls {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="slide" id="slide-1" data-slide="01">
+      <div class="frame split-note">
+        <div>
+          <p class="eyebrow">Trabajo Final · Visión Artificial · Grupo 13</p>
+          <h1>Visión Artificial aplicada al Diseño de Interiores</h1>
+          <p class="lead">Tres formas de intervenir un ambiente desde una sola foto: <strong>borrar</strong>, <strong>agregar</strong> y <strong>entender</strong>.</p>
+          <div class="meta">
+            <span>Mirko Vrancic</span>
+            <span>Tobías Berger</span>
+            <span>Pablo Pagliaricci</span>
+          </div>
+        </div>
+        <div class="hero-mark" aria-label="Diagrama abstracto de mueble proyectado sobre piso"></div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-2" data-slide="02">
+      <div class="frame">
+        <p class="eyebrow">El problema</p>
+        <h2>Editar un ambiente sin renders 3D ni escaneos costosos.</h2>
+        <p class="lead">A partir de una única foto hay que separar muebles del fondo, ubicar objetos con perspectiva real y estimar una referencia geométrica del espacio.</p>
+        <div class="grid-3">
+          <div class="metric"><b>3</b><span><strong>enfoques</strong> independientes para borrar, agregar y entender la escena.</span></div>
+          <div class="metric"><b>1</b><span><strong>foto</strong> de entrada. No hay escaneo 3D ni sensor de profundidad real.</span></div>
+          <div class="metric"><b>0</b><span><strong>torch/tensorflow</strong> en el núcleo: OpenCV clásico como base.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-3" data-slide="03">
+      <div class="frame">
+        <p class="eyebrow">Cómo lo armamos</p>
+        <h2>Desarrollo incremental en cinco commits de producto.</h2>
+        <div class="timeline">
+          <time>14 jun</time><p><strong>Base común</strong> + módulo de perspectiva + reconstrucción v1 con profundidad heurística.</p>
+          <time>14 jun</time><p><strong>Reconstrucción</strong>: de imagen cargada a profundidad relativa y planta aproximada.</p>
+          <time>14 jun</time><p><strong>Vista de planta</strong>: grilla de ocupación top-down más legible.</p>
+          <time>19 jun</time><p><strong>Renovación</strong>: grabCut + inpainting + frontend en Gradio.</p>
+          <time>24 jun</time><p><strong>Pulido final</strong>: demo, assets, fallbacks y presentación integrada.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-4" data-slide="04">
+      <div class="frame">
+        <p class="eyebrow">Los 3 enfoques</p>
+        <h2>Un núcleo común, tres módulos paralelos.</h2>
+        <div class="modules">
+          <div class="common-row"><span class="tag">Entrada</span><span><strong>Imagen cargada</strong> → fuentes, geometría, trackbars y assets compartidos en <strong>common/</strong>.</span></div>
+          <div class="module-row"><span class="tag">01</span><span><strong>Renovación</strong>: eliminar un mueble y reconstruir fondo.</span><span class="verb">borrar</span></div>
+          <div class="module-row"><span class="tag">02</span><span><strong>Perspectiva</strong>: insertar un mueble en el plano del piso.</span><span class="verb">agregar</span></div>
+          <div class="module-row"><span class="tag">03</span><span><strong>Reconstrucción</strong>: estimar profundidad y vista top-down.</span><span class="verb">entender</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-5" data-slide="05">
+      <div class="frame">
+        <p class="eyebrow">Enfoque 1 · Renovación</p>
+        <h2>Sacar un mueble y reconstruir lo que había detrás.</h2>
+        <div class="spec">
+          <article><h3>Objetivo</h3><p>Eliminar un objeto sin dejar huecos ni parches evidentes.</p></article>
+          <article><h3>Input</h3><p><strong>ROI</strong> seleccionada por el usuario sobre el mueble a borrar.</p></article>
+          <article><h3>Algoritmo</h3><p><strong>grabCut</strong>, refinado morfológico, componente conectada y <strong>inpainting</strong> TELEA/Navier-Stokes o LaMa.</p></article>
+          <article><h3>Output</h3><p>Imagen limpia + comparación de <strong>máscara</strong> y resultado final.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-6" data-slide="06">
+      <div class="frame formula">
+        <p class="eyebrow">Enfoque 1 · Deep Dive</p>
+        <h2>Scoring automático para elegir la mejor máscara.</h2>
+        <code class="equation">score = 0.45·IoU + 0.45·cobertura <span class="muted">−</span> 0.10·toca_borde <span class="muted">−</span> penalizaciones</code>
+        <div class="grid-3">
+          <div class="metric"><b>IoU</b><span>Solape entre la máscara candidata y la caja marcada por el usuario.</span></div>
+          <div class="metric"><b>COV</b><span>Cobertura interna de la caja: evita máscaras demasiado chicas.</span></div>
+          <div class="metric"><b>OR</b><span>Dos máscaras se combinan si la unión mejora el score final.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-7" data-slide="07">
+      <div class="frame">
+        <p class="eyebrow">Enfoque 2 · Perspectiva</p>
+        <h2>Visualizar un mueble nuevo en su lugar real.</h2>
+        <div class="spec">
+          <article><h3>Objetivo</h3><p>Insertar un mueble respetando la <strong>perspectiva</strong> de la habitación.</p></article>
+          <article><h3>Input</h3><p><strong>Foto</strong> + 4 puntos marcados por el usuario sobre el piso.</p></article>
+          <article><h3>Algoritmo</h3><p><strong>Homografía</strong> plano→perspectiva con <strong>getPerspectiveTransform</strong> y <strong>warpPerspective</strong>; sprite con alfa y sombra por centroide de brillo.</p></article>
+          <article><h3>Output</h3><p>Composición con mueble apoyado en el piso, sombra proyectada y controles de <strong>altura</strong> / <strong>opacidad</strong>.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-8" data-slide="08">
+      <div class="frame">
+        <p class="eyebrow">Enfoque 3 · Reconstrucción</p>
+        <h2>Entender el espacio: profundidad y vista de planta.</h2>
+        <div class="spec">
+          <article><h3>Objetivo</h3><p>Estimar distribución espacial de muebles y zonas ocupadas.</p></article>
+          <article><h3>Input</h3><p><strong>Imagen cargada</strong> desde la interfaz, procesada a escala reducida.</p></article>
+          <article><h3>Algoritmo</h3><p><strong>MiDaS small</strong> vía cv2.dnn/ONNX, blobs de cercanía, contornos y fallback con gradiente vertical.</p></article>
+          <article><h3>Output</h3><p>Grilla 2×2: original, profundidad, objetos detectados y <strong>planta top-down</strong>.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-9" data-slide="09">
+      <div class="frame">
+        <p class="eyebrow">Enfoque 3 · Deep Dive</p>
+        <h2>De una imagen a una planta aproximada.</h2>
+        <div class="flow">
+          <article>
+            <b>01</b>
+            <h3>Imagen</h3>
+            <p>La página recibe una <strong>imagen cargada</strong> y trabaja sobre ese archivo estático.</p>
+          </article>
+          <article>
+            <b>02</b>
+            <h3>Profundidad</h3>
+            <p><strong>MiDaS</strong> estima profundidad relativa: qué zonas parecen más cerca o más lejos.</p>
+          </article>
+          <article>
+            <b>03</b>
+            <h3>Planta</h3>
+            <p>Los píxeles se agrupan en una <strong>grilla de ocupación</strong> para visualizar la distribución desde arriba.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-10" data-slide="10">
+      <div class="frame">
+        <p class="eyebrow">Stack tecnológico</p>
+        <h2>Núcleo clásico, modelos livianos como plus opcional.</h2>
+        <table>
+          <thead><tr><th>Librería</th><th>Uso en el TP</th></tr></thead>
+          <tbody>
+            <tr><td>OpenCV</td><td><strong>grabCut</strong>, inpainting, homografía, contornos y cv2.dnn.</td></tr>
+            <tr><td>NumPy</td><td>Álgebra de matrices, compositing alfa y back-proyección vectorizada.</td></tr>
+            <tr><td>Gradio</td><td>Frontend web para ejecutar los tres enfoques desde navegador.</td></tr>
+            <tr><td>PyTorch / ONNX</td><td>Soporte de LaMa y carga de MiDaS small en ONNX.</td></tr>
+            <tr><td>LaMa / rembg</td><td>Backends alternativos para inpainting y segmentación automática.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-11" data-slide="11">
+      <div class="frame">
+        <p class="eyebrow">Relación con la materia</p>
+        <h2>No inventamos técnicas nuevas: las combinamos.</h2>
+        <table>
+          <thead><tr><th>Técnica del TP</th><th>Tema de la cursada</th></tr></thead>
+          <tbody>
+            <tr><td>grabCut + inpainting</td><td><strong>Segmentación</strong>, máscaras y reconstrucción local.</td></tr>
+            <tr><td>Homografía</td><td><strong>Transformaciones geométricas</strong> y práctica de homografía.</td></tr>
+            <tr><td>Contornos / blobs</td><td><strong>Contornos</strong> y componentes conectados.</td></tr>
+            <tr><td>Modelo pinhole</td><td><strong>Calibración de cámara</strong> y geometría proyectiva.</td></tr>
+            <tr><td>cv2.dnn + ONNX</td><td><strong>Redes preentrenadas</strong> integradas desde OpenCV.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-12" data-slide="12">
+      <div class="frame">
+        <p class="eyebrow">Limitaciones</p>
+        <h2>Dependencias fuertes y aproximaciones geométricas.</h2>
+        <div class="grid-2">
+          <div>
+            <h3>Dependencias fuertes</h3>
+            <ul class="bullets">
+              <li><strong>MiDaS</strong> depende del modelo ONNX; sin descarga, cae a una heurística más pobre.</li>
+              <li><strong>grabCut</strong> necesita una ROI razonablemente ajustada.</li>
+              <li><strong>LaMa/rembg</strong> mejoran calidad, pero aumentan peso de entorno.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Aproximaciones geométricas</h3>
+            <ul class="bullets">
+              <li><strong>Homografía</strong> asume piso plano.</li>
+              <li><strong>Profundidad monocular</strong> es relativa, no métrica.</li>
+              <li><strong>Un frame</strong> por vez: no se acumula información temporal.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <section class="slide" id="slide-13" data-slide="13">
+      <div class="frame">
+        <p class="eyebrow">Cierre</p>
+        <h2>Repositorio y preguntas.</h2>
+        <p class="repo">github.com/Mvrancic/vision_artificial_g13/tree/main/tp_final</p>
+        <div class="grid-3">
+          <div class="metric"><b>01</b><span><strong>Renovación</strong>: borrar objetos.</span></div>
+          <div class="metric"><b>02</b><span><strong>Perspectiva</strong>: agregar muebles.</span></div>
+          <div class="metric"><b>03</b><span><strong>Reconstrucción</strong>: entender planta.</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="controls">↑ ↓ para navegar · imprimir como PDF desde el navegador</div>
+
+  <script>
+    const slides = [...document.querySelectorAll(".slide")];
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+    function activeIndex() {
+      const mid = window.scrollY + window.innerHeight / 2;
+      return clamp(slides.findIndex((slide) => slide.offsetTop + slide.offsetHeight > mid), 0, slides.length - 1);
+    }
+
+    window.addEventListener("keydown", (event) => {
+      const keys = ["ArrowDown", "PageDown", " ", "ArrowRight", "ArrowUp", "PageUp", "ArrowLeft", "Home", "End"];
+      if (!keys.includes(event.key)) return;
+      event.preventDefault();
+
+      let next = activeIndex();
+      if (["ArrowDown", "PageDown", " ", "ArrowRight"].includes(event.key)) next += 1;
+      if (["ArrowUp", "PageUp", "ArrowLeft"].includes(event.key)) next -= 1;
+      if (event.key === "Home") next = 0;
+      if (event.key === "End") next = slides.length - 1;
+
+      slides[clamp(next, 0, slides.length - 1)].scrollIntoView({ behavior: "smooth" });
+    });
+  </script>
+</body>
+</html>

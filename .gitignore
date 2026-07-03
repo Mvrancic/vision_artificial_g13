@@ -19677,3 +19677,6 @@ tp_final/enfoque3_reconstruccion/models/*.onnx
 /practica_segmentacion/outputs/predictions_manual/pJTq0KYYdDMC20Bsu9Qrgg_b_prediction.png
 /practica_segmentacion/outputs/unet_bloodcells_last.keras
 /practica_segmentacion/dataset.zip
+
+# Video recordings (too large for GitHub, keep local only)
+tp_final/presentacion_assets/video_app/*.mov
