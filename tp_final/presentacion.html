@@ -48,7 +48,7 @@
     }
 
     .slide::after {
-      content: attr(data-slide) "/7";
+      content: attr(data-slide) "/9";
       position: absolute;
       right: 44px;
       bottom: 34px;
@@ -393,6 +393,7 @@
         grid-template-columns: 86px 1fr;
         gap: 0 16px;
       }
+
     }
 
     @media print {
@@ -499,8 +500,50 @@
       </div>
     </section>
 
-
     <section class="slide" id="slide-7" data-slide="07">
+      <div class="frame">
+        <p class="eyebrow">Stack tecnológico</p>
+        <h2>Núcleo clásico, modelos livianos como plus opcional.</h2>
+        <table>
+          <thead><tr><th>Librería</th><th>Uso en el TP</th></tr></thead>
+          <tbody>
+            <tr><td>OpenCV</td><td><strong>grabCut</strong>, inpainting, homografía, contornos y cv2.dnn.</td></tr>
+            <tr><td>NumPy</td><td>Álgebra de matrices, compositing alfa y back-proyección vectorizada.</td></tr>
+            <tr><td>Gradio</td><td>Frontend web para ejecutar los tres enfoques desde navegador.</td></tr>
+            <tr><td>PyTorch / ONNX</td><td>Soporte de LaMa y carga de MiDaS small en ONNX.</td></tr>
+            <tr><td>LaMa / rembg</td><td>Backends alternativos para inpainting y segmentación automática.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-8" data-slide="08">
+      <div class="frame">
+        <p class="eyebrow">Limitaciones</p>
+        <h2>Dependencias fuertes y aproximaciones geométricas.</h2>
+        <div class="grid-2">
+          <div>
+            <h3>Dependencias fuertes</h3>
+            <ul class="bullets">
+              <li><strong>MiDaS</strong> depende del modelo ONNX; sin descarga, cae a una heurística más pobre.</li>
+              <li><strong>grabCut</strong> necesita una ROI razonablemente ajustada.</li>
+              <li><strong>LaMa/rembg</strong> mejoran calidad, pero aumentan peso de entorno.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Aproximaciones geométricas</h3>
+            <ul class="bullets">
+              <li><strong>Homografía</strong> asume piso plano.</li>
+              <li><strong>Profundidad monocular</strong> es relativa, no métrica.</li>
+              <li><strong>Un frame</strong> por vez: no se acumula información temporal.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <section class="slide" id="slide-9" data-slide="09">
       <div class="frame">
         <p class="eyebrow">Cierre</p>
         <h2>Un mismo sistema para borrar, agregar y entender un ambiente desde una sola foto.</h2>
